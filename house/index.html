@@ -47,8 +47,6 @@
             width="800" 
             height="600"
             images="100"
-            auto-rotate="true"
-            rotation-speed="10"
             image-url-pattern="https://cdn.treehouseinternetgroup.com/cms_images/872/T360house/v3_360%20house%20signs{frame}.png"
             frame-padding="4"
             start-frame="0">
@@ -81,8 +79,6 @@
                 this.attachShadow({ mode: 'open' });
                 this.currentFrame = 0;
                 this.totalFrames = 100;
-                this.isRotating = false;
-                this.autoRotateInterval = null;
                 this.images = [];
                 this.imagesLoaded = 0;
                 this.imageCache = new Map();
@@ -93,8 +89,6 @@
                 this.totalFrames = parseInt(this.getAttribute('images') || '59');
                 this.width = this.getAttribute('width') || '600';
                 this.height = this.getAttribute('height') || '400';
-                this.autoRotate = this.getAttribute('auto-rotate') === 'true';
-                this.rotationSpeed = parseInt(this.getAttribute('rotation-speed') || '10');
                 
                 // URL pattern configuration
                 this.imageUrlPattern = this.getAttribute('image-url-pattern');
@@ -103,17 +97,13 @@
                 
                 this.render();
                 this.loadImages().then(() => {
-                    if (this.autoRotate) {
-                        this.startAutoRotate();
-                    }
+                    // Auto-rotate logic removed
                 });
                 this.setupEventListeners();
             }
             
             disconnectedCallback() {
-                if (this.autoRotateInterval) {
-                    clearInterval(this.autoRotateInterval);
-                }
+                // Auto-rotate interval clearing removed
             }
             
             render() {
@@ -258,7 +248,6 @@
                             <slot></slot>
                         </div>
                         <div class="controls">
-                            <button class="play-pause">▶ Play</button>
                             <button class="reset">↺ Reset</button>
                         </div>
                     </div>
@@ -334,29 +323,24 @@
             
             setupEventListeners() {
                 const container = this.shadowRoot.querySelector('.viewer-container');
-                const playPauseBtn = this.shadowRoot.querySelector('.play-pause');
                 const resetBtn = this.shadowRoot.querySelector('.reset');
 
-                // Prevent container drag when clicking the Play/Pause or Reset buttons:
-                [playPauseBtn, resetBtn].forEach(btn => {
+                // Prevent container drag when clicking the Reset buttons:
+                [resetBtn].forEach(btn => {
                     btn.addEventListener('pointerdown', e => e.stopPropagation());
                 });
 
                 let isDragging = false;
                 let lastPointerX = 0;
-                let dragAccum = 0;
-                const dragSensitivity = 5;
 
                 const onPointerMove = (e) => {
                     if (!isDragging) return;
                     e.preventDefault();
                     const deltaX = e.clientX - lastPointerX;
                     lastPointerX = e.clientX;
-                    dragAccum += deltaX;
-                    const framesToMove = Math.trunc(dragAccum / dragSensitivity);
-                    if (framesToMove !== 0) {
-                        this.rotate(framesToMove);
-                        dragAccum -= framesToMove * dragSensitivity;
+                    const move = Math.round(deltaX / 3); // Adjust divisor for sensitivity
+                    if (move !== 0) {
+                        this.rotate(move);
                     }
                 };
 
@@ -375,24 +359,11 @@
 
                     isDragging = true;
                     lastPointerX = e.clientX;
-                    dragAccum = 0;
                     this.setAttribute('dragging', '');
-                    this.stopAutoRotate();
 
                     window.addEventListener('pointermove', onPointerMove);
                     window.addEventListener('pointerup', onPointerUpOrCancel);
                     window.addEventListener('pointercancel', onPointerUpOrCancel);
-                });
-
-                // Play/Pause button
-                playPauseBtn.addEventListener('click', () => {
-                    if (this.isRotating) {
-                        this.stopAutoRotate();
-                        playPauseBtn.textContent = '▶ Play';
-                    } else {
-                        this.startAutoRotate();
-                        playPauseBtn.textContent = '⏸ Pause';
-                    }
                 });
 
                 // Reset button
@@ -423,21 +394,6 @@
                     bubbles: true,
                     composed: true
                 }));
-            }
-            
-            startAutoRotate() {
-                this.isRotating = true;
-                this.autoRotateInterval = setInterval(() => {
-                    this.rotate(1);
-                }, 1000 / this.rotationSpeed);
-            }
-            
-            stopAutoRotate() {
-                this.isRotating = false;
-                if (this.autoRotateInterval) {
-                    clearInterval(this.autoRotateInterval);
-                    this.autoRotateInterval = null;
-                }
             }
         }
         
