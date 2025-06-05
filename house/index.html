@@ -47,7 +47,7 @@
             width="800" 
             height="600"
             images="100"
-            auto-rotate="false"
+            auto-rotate="true"
             rotation-speed="10"
             image-url-pattern="https://cdn.treehouseinternetgroup.com/cms_images/872/T360house/v3_360%20house%20signs{frame}.png"
             frame-padding="4"
@@ -102,12 +102,12 @@
                 this.startFrame = parseInt(this.getAttribute('start-frame') || '0');
                 
                 this.render();
-                this.loadImages();
+                this.loadImages().then(() => {
+                    if (this.autoRotate) {
+                        this.startAutoRotate();
+                    }
+                });
                 this.setupEventListeners();
-                
-                if (this.autoRotate) {
-                    this.startAutoRotate();
-                }
             }
             
             disconnectedCallback() {
@@ -346,14 +346,13 @@
                 let lastPointerX = 0;
 
                 const onPointerMove = (e) => {
+                    if (!isDragging) return;
                     e.preventDefault();
                     const deltaX = e.clientX - lastPointerX;
-                    if (deltaX === 0) return;
-
-                    const steps = Math.floor(deltaX / 10);
-                    if (steps !== 0) {
-                        this.rotate(steps > 0 ? 1 : -1);
-                        lastPointerX = e.clientX;
+                    lastPointerX = e.clientX;
+                    const step = deltaX / 5;
+                    if (Math.abs(step) >= 1) {
+                        this.rotate(Math.round(step));
                     }
                 };
 
