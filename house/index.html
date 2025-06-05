@@ -344,15 +344,19 @@
 
                 let isDragging = false;
                 let lastPointerX = 0;
+                let dragAccum = 0;
+                const dragSensitivity = 5;
 
                 const onPointerMove = (e) => {
                     if (!isDragging) return;
                     e.preventDefault();
                     const deltaX = e.clientX - lastPointerX;
                     lastPointerX = e.clientX;
-                    const step = deltaX / 5;
-                    if (Math.abs(step) >= 1) {
-                        this.rotate(Math.round(step));
+                    dragAccum += deltaX;
+                    const framesToMove = Math.trunc(dragAccum / dragSensitivity);
+                    if (framesToMove !== 0) {
+                        this.rotate(framesToMove);
+                        dragAccum -= framesToMove * dragSensitivity;
                     }
                 };
 
@@ -371,6 +375,7 @@
 
                     isDragging = true;
                     lastPointerX = e.clientX;
+                    dragAccum = 0;
                     this.setAttribute('dragging', '');
                     this.stopAutoRotate();
 
