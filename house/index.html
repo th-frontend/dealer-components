@@ -47,18 +47,19 @@
             width="800" 
             height="600"
             images="100"
-            auto-rotate="false"
+            auto-rotate="true"
             rotation-speed="10"
             image-url-pattern="https://cdn.treehouseinternetgroup.com/cms_images/872/T360house/v3_360%20house%20signs{frame}.png"
             frame-padding="4"
             start-frame="0">
             
             <!-- Add hotspots for house sign features -->
-            <product-hotspot 
-                x="50" 
-                y="30" 
-                title="Title 1" 
-                description="Description">
+            <product-hotspot
+                x="50"
+                y="30"
+                title="Title 1"
+                description="Description"
+                positions='[{"x":50,"y":30},{"x":52,"y":30},{"x":54,"y":30}]'>
             </product-hotspot>
             
             <product-hotspot 
@@ -101,12 +102,12 @@
                 this.startFrame = parseInt(this.getAttribute('start-frame') || '0');
                 
                 this.render();
-                this.loadImages();
+                this.loadImages().then(() => {
+                    if (this.autoRotate) {
+                        this.startAutoRotate();
+                    }
+                });
                 this.setupEventListeners();
-                
-                if (this.autoRotate) {
-                    this.startAutoRotate();
-                }
             }
             
             disconnectedCallback() {
@@ -122,6 +123,7 @@
                             display: block;
                             position: relative;
                             user-select: none;
+                            touch-action: none;
                             cursor: grab;
                         }
                         
@@ -343,32 +345,31 @@
 
                 let isDragging = false;
                 let lastPointerX = 0;
-                let rafId = null;
+                let deltaAccumulator = 0;
 
                 const onPointerMove = (e) => {
+                    if (!isDragging) return;
                     e.preventDefault();
-                    const deltaX = e.clientX - lastPointerX;
-                    if (deltaX === 0) return;
-
-                    const steps = Math.floor(deltaX / 10);
-                    if (steps !== 0) {
-                        this.rotate(steps > 0 ? 1 : -1);
-                        lastPointerX = e.clientX;
+                    deltaAccumulator += e.clientX - lastPointerX;
+                    lastPointerX = e.clientX;
+                    const threshold = 5;
+                    while (deltaAccumulator >= threshold) {
+                        this.rotate(1);
+                        deltaAccumulator -= threshold;
                     }
-
-                    rafId = requestAnimationFrame(() => onPointerMove(e));
+                    while (deltaAccumulator <= -threshold) {
+                        this.rotate(-1);
+                        deltaAccumulator += threshold;
+                    }
                 };
 
                 const onPointerUpOrCancel = () => {
                     isDragging = false;
                     this.removeAttribute('dragging');
-                    if (rafId) {
-                        cancelAnimationFrame(rafId);
-                        rafId = null;
-                    }
                     window.removeEventListener('pointermove', onPointerMove);
                     window.removeEventListener('pointerup', onPointerUpOrCancel);
                     window.removeEventListener('pointercancel', onPointerUpOrCancel);
+                    deltaAccumulator = 0;
                 };
 
                 container.addEventListener('pointerdown', (e) => {
@@ -378,6 +379,7 @@
 
                     isDragging = true;
                     lastPointerX = e.clientX;
+                    deltaAccumulator = 0;
                     this.setAttribute('dragging', '');
                     this.stopAutoRotate();
 
@@ -420,6 +422,11 @@
                 this.images.forEach((img, index) => {
                     img.classList.toggle('active', index === this.currentFrame);
                 });
+                this.dispatchEvent(new CustomEvent('frameupdate', {
+                    detail: { frame: this.currentFrame },
+                    bubbles: true,
+                    composed: true
+                }));
             }
             
             startAutoRotate() {
@@ -446,13 +453,29 @@
             }
             
             connectedCallback() {
-                this.x = this.getAttribute('x') || '50';
-                this.y = this.getAttribute('y') || '50';
+                this.x = parseFloat(this.getAttribute('x') || '50');
+                this.y = parseFloat(this.getAttribute('y') || '50');
                 this.title = this.getAttribute('title') || 'Information';
                 this.description = this.getAttribute('description') || '';
-                
+
+                const positionsAttr = this.getAttribute('positions');
+                if (positionsAttr) {
+                    try {
+                        this.positions = JSON.parse(positionsAttr);
+                    } catch (e) {
+                        console.error('Invalid positions attribute', e);
+                        this.positions = null;
+                    }
+                }
+
                 this.render();
                 this.setupEventListeners();
+
+                this.viewer = this.closest('product-viewer-360');
+                if (this.viewer) {
+                    this.viewer.addEventListener('frameupdate', (e) => this.handleFrameUpdate(e));
+                    this.handleFrameUpdate({ detail: { frame: this.viewer.currentFrame || 0 }});
+                }
             }
             
             render() {
@@ -505,72 +528,79 @@
                             font-weight: bold;
                         }
                         
-                        .tooltip {
-                            position: absolute;
-                            bottom: 100%;
-                            left: 50%;
-                            transform: translateX(-50%) translateY(-10px);
+                        .modal-overlay {
+                            position: fixed;
+                            inset: 0;
+                            background: rgba(0,0,0,0.6);
+                            display: none;
+                            align-items: center;
+                            justify-content: center;
+                            z-index: 1000;
+                        }
+
+                        .modal-overlay.active {
+                            display: flex;
+                        }
+
+                        .modal {
+                            position: relative;
                             background: white;
-                            padding: 12px 16px;
+                            padding: 20px;
                             border-radius: 8px;
-                            box-shadow: 0 4px 20px rgba(0,0,0,0.15);
-                            min-width: 200px;
-                            opacity: 0;
-                            visibility: hidden;
-                            transition: opacity 0.3s, visibility 0.3s;
-                            pointer-events: none;
+                            max-width: 400px;
+                            box-shadow: 0 4px 20px rgba(0,0,0,0.2);
                         }
-                        
-                        .tooltip.active {
-                            opacity: 1;
-                            visibility: visible;
-                        }
-                        
-                        .tooltip::after {
-                            content: '';
+
+                        .close {
                             position: absolute;
-                            top: 100%;
-                            left: 50%;
-                            transform: translateX(-50%);
-                            border: 8px solid transparent;
-                            border-top-color: white;
-                        }
-                        
-                        .tooltip h3 {
-                            margin: 0 0 4px 0;
-                            font-size: 16px;
-                            color: #333;
-                        }
-                        
-                        .tooltip p {
-                            margin: 0;
-                            font-size: 14px;
-                            color: #666;
-                            line-height: 1.4;
+                            top: 8px;
+                            right: 8px;
+                            background: transparent;
+                            border: none;
+                            font-size: 24px;
+                            cursor: pointer;
                         }
                     </style>
                     
                     <div class="hotspot"></div>
-                    <div class="tooltip">
-                        <h3>${this.title}</h3>
-                        <p>${this.description}</p>
+                    <div class="modal-overlay">
+                        <div class="modal">
+                            <button class="close" aria-label="Close">&times;</button>
+                            <h3>${this.title}</h3>
+                            <p>${this.description}</p>
+                        </div>
                     </div>
                 `;
             }
             
             setupEventListeners() {
                 const hotspot = this.shadowRoot.querySelector('.hotspot');
-                const tooltip = this.shadowRoot.querySelector('.tooltip');
-                
+                const overlay = this.shadowRoot.querySelector('.modal-overlay');
+                const closeBtn = this.shadowRoot.querySelector('.close');
+
                 hotspot.addEventListener('click', () => {
-                    tooltip.classList.toggle('active');
+                    overlay.classList.add('active');
                 });
-                
-                document.addEventListener('click', (e) => {
-                    if (!this.contains(e.target)) {
-                        tooltip.classList.remove('active');
+
+                closeBtn.addEventListener('click', () => {
+                    overlay.classList.remove('active');
+                });
+
+                overlay.addEventListener('click', (e) => {
+                    if (e.target === overlay) {
+                        overlay.classList.remove('active');
                     }
                 });
+            }
+
+            handleFrameUpdate(e) {
+                if (this.positions && this.positions[e.detail.frame]) {
+                    const pos = this.positions[e.detail.frame];
+                    if (typeof pos.x === 'number') this.x = pos.x;
+                    if (typeof pos.y === 'number') this.y = pos.y;
+                    this.style.left = `${this.x}%`;
+                    this.style.top = `${this.y}%`;
+                }
             }
         }
         
