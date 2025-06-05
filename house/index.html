@@ -1,0 +1,582 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>360° House  Viewer</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            margin: 0;
+            padding: 40px;
+            background: #f5f5f5;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+        
+        .demo-container {
+            max-width: 800px;
+            background: white;
+            padding: 40px;
+            border-radius: 20px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+        }
+        
+        h1 {
+            margin: 0 0 10px 0;
+            color: #333;
+            text-align: center;
+        }
+        
+        p {
+            text-align: center;
+            color: #666;
+            margin: 0 0 30px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="demo-container">
+        <h1>360° House Signs Viewer</h1>
+        <p>Click and drag to rotate • Click on the dots to see features</p>
+        
+        <!-- Using the Treehouse CDN images -->
+        <product-viewer-360 
+            width="800" 
+            height="600"
+            images="100"
+            auto-rotate="false"
+            rotation-speed="10"
+            image-url-pattern="https://cdn.treehouseinternetgroup.com/cms_images/872/T360house/v3_360%20house%20signs{frame}.png"
+            frame-padding="4"
+            start-frame="0">
+            
+            <!-- Add hotspots for house sign features -->
+            <product-hotspot 
+                x="50" 
+                y="30" 
+                title="Title 1" 
+                description="Description">
+            </product-hotspot>
+            
+            <product-hotspot 
+                x="70" 
+                y="50" 
+                title="Title 2" 
+                description="Choose from various fonts and sizes to match your home's style.">
+            </product-hotspot>
+            
+          
+        </product-viewer-360>
+    </div>
+
+    <script>
+        // Enhanced Web Component with URL pattern support
+        class ProductViewer360 extends HTMLElement {
+            constructor() {
+                super();
+                this.attachShadow({ mode: 'open' });
+                this.currentFrame = 0;
+                this.totalFrames = 100;
+                this.isRotating = false;
+                this.autoRotateInterval = null;
+                this.images = [];
+                this.imagesLoaded = 0;
+                this.imageCache = new Map();
+            }
+            
+            connectedCallback() {
+                // Get configuration from attributes
+                this.totalFrames = parseInt(this.getAttribute('images') || '59');
+                this.width = this.getAttribute('width') || '600';
+                this.height = this.getAttribute('height') || '400';
+                this.autoRotate = this.getAttribute('auto-rotate') === 'true';
+                this.rotationSpeed = parseInt(this.getAttribute('rotation-speed') || '10');
+                
+                // URL pattern configuration
+                this.imageUrlPattern = this.getAttribute('image-url-pattern');
+                this.framePadding = parseInt(this.getAttribute('frame-padding') || '4');
+                this.startFrame = parseInt(this.getAttribute('start-frame') || '0');
+                
+                this.render();
+                this.loadImages();
+                this.setupEventListeners();
+                
+                if (this.autoRotate) {
+                    this.startAutoRotate();
+                }
+            }
+            
+            disconnectedCallback() {
+                if (this.autoRotateInterval) {
+                    clearInterval(this.autoRotateInterval);
+                }
+            }
+            
+            render() {
+                this.shadowRoot.innerHTML = `
+                    <style>
+                        :host {
+                            display: block;
+                            position: relative;
+                            user-select: none;
+                            cursor: grab;
+                        }
+                        
+                        :host([dragging]) {
+                            cursor: grabbing;
+                        }
+                        
+                        .viewer-container {
+                            position: relative;
+                            width: ${this.width}px;
+                            height: ${this.height}px;
+                            overflow: hidden;
+                            border-radius: 12px;
+                            background: #f8f8f8;
+                            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+                        }
+                        
+                        .image-container {
+                            width: 100%;
+                            height: 100%;
+                            position: relative;
+                        }
+                        
+                        .product-image {
+                            width: 100%;
+                            height: 100%;
+                            object-fit: contain;
+                            display: none;
+                            position: absolute;
+                            top: 0;
+                            left: 0;
+                        }
+                        
+                        .product-image.active {
+                            display: block;
+                        }
+                        
+                        .loading {
+                            position: absolute;
+                            top: 50%;
+                            left: 50%;
+                            transform: translate(-50%, -50%);
+                            text-align: center;
+                            color: #666;
+                        }
+                        
+                        .loading-spinner {
+                            width: 40px;
+                            height: 40px;
+                            border: 3px solid #f3f3f3;
+                            border-top: 3px solid #333;
+                            border-radius: 50%;
+                            animation: spin 1s linear infinite;
+                            margin: 0 auto 10px;
+                        }
+                        
+                        @keyframes spin {
+                            0% { transform: rotate(0deg); }
+                            100% { transform: rotate(360deg); }
+                        }
+                        
+                        .loading-progress {
+                            font-size: 14px;
+                            margin-top: 10px;
+                        }
+                        
+                        .controls {
+                            position: absolute;
+                            bottom: 20px;
+                            left: 50%;
+                            transform: translateX(-50%);
+                            display: flex;
+                            gap: 10px;
+                            background: rgba(255,255,255,0.95);
+                            padding: 10px;
+                            border-radius: 8px;
+                            backdrop-filter: blur(10px);
+                            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+                        }
+                        
+                        button {
+                            background: #333;
+                            color: white;
+                            border: none;
+                            padding: 8px 16px;
+                            border-radius: 6px;
+                            cursor: pointer;
+                            font-size: 14px;
+                            transition: background 0.2s;
+                        }
+                        
+                        button:hover {
+                            background: #555;
+                        }
+                        
+                        button:active {
+                            transform: scale(0.95);
+                        }
+                        
+                        .hotspots-container {
+                            position: absolute;
+                            top: 0;
+                            left: 0;
+                            width: 100%;
+                            height: 100%;
+                            pointer-events: none;
+                        }
+                        
+                        ::slotted(product-hotspot) {
+                            pointer-events: auto;
+                        }
+                        
+                        .error-message {
+                            position: absolute;
+                            top: 50%;
+                            left: 50%;
+                            transform: translate(-50%, -50%);
+                            text-align: center;
+                            color: #666;
+                            padding: 20px;
+                        }
+                    </style>
+                    
+                    <div class="viewer-container">
+                        <div class="image-container">
+                            <div class="loading">
+                                <div class="loading-spinner"></div>
+                                <div>Loading 360° view...</div>
+                                <div class="loading-progress">0%</div>
+                            </div>
+                        </div>
+                        <div class="hotspots-container">
+                            <slot></slot>
+                        </div>
+                        <div class="controls">
+                            <button class="play-pause">▶ Play</button>
+                            <button class="reset">↺ Reset</button>
+                        </div>
+                    </div>
+                `;
+            }
+            
+            formatFrameNumber(frameIndex) {
+                // Pad frame number with zeros based on frame-padding attribute
+                const frameNumber = this.startFrame + frameIndex;
+                return frameNumber.toString().padStart(this.framePadding, '0');
+            }
+            
+            getImageUrl(frameIndex) {
+                // Replace {frame} placeholder with formatted frame number
+                const formattedFrame = this.formatFrameNumber(frameIndex);
+                return this.imageUrlPattern.replace('{frame}', formattedFrame);
+            }
+            
+            async loadImages() {
+                const container = this.shadowRoot.querySelector('.image-container');
+                const loadingProgress = this.shadowRoot.querySelector('.loading-progress');
+                let loadedCount = 0;
+                
+                // Create image elements and start loading
+                const loadPromises = [];
+                
+                for (let i = 0; i < this.totalFrames; i++) {
+                    const img = document.createElement('img');
+                    img.className = 'product-image';
+                    if (i === 0) img.classList.add('active');
+                    
+                    const imageUrl = this.getImageUrl(i);
+                    
+                    const loadPromise = new Promise((resolve, reject) => {
+                        img.onload = () => {
+                            loadedCount++;
+                            const progress = Math.round((loadedCount / this.totalFrames) * 100);
+                            loadingProgress.textContent = `${progress}%`;
+                            resolve();
+                        };
+                        
+                        img.onerror = () => {
+                            console.error(`Failed to load image: ${imageUrl}`);
+                            reject(new Error(`Failed to load image: ${imageUrl}`));
+                        };
+                    });
+                    
+                    img.src = imageUrl;
+                    this.images.push(img);
+                    container.appendChild(img);
+                    loadPromises.push(loadPromise);
+                }
+                
+                try {
+                    // Wait for all images to load
+                    await Promise.all(loadPromises);
+                    this.hideLoading();
+                } catch (error) {
+                    console.error('Error loading images:', error);
+                    this.showError('Failed to load some images. Please check the console for details.');
+                }
+            }
+            
+            hideLoading() {
+                const loading = this.shadowRoot.querySelector('.loading');
+                loading.style.display = 'none';
+            }
+            
+            showError(message) {
+                const container = this.shadowRoot.querySelector('.image-container');
+                container.innerHTML = `<div class="error-message">${message}</div>`;
+            }
+            
+            setupEventListeners() {
+                const container = this.shadowRoot.querySelector('.viewer-container');
+                const playPauseBtn = this.shadowRoot.querySelector('.play-pause');
+                const resetBtn = this.shadowRoot.querySelector('.reset');
+
+                // Prevent container drag when clicking the Play/Pause or Reset buttons:
+                [playPauseBtn, resetBtn].forEach(btn => {
+                    btn.addEventListener('pointerdown', e => e.stopPropagation());
+                });
+
+                let isDragging = false;
+                let lastPointerX = 0;
+                let rafId = null;
+
+                const onPointerMove = (e) => {
+                    e.preventDefault();
+                    const deltaX = e.clientX - lastPointerX;
+                    if (deltaX === 0) return;
+
+                    const steps = Math.floor(deltaX / 10);
+                    if (steps !== 0) {
+                        this.rotate(steps > 0 ? 1 : -1);
+                        lastPointerX = e.clientX;
+                    }
+
+                    rafId = requestAnimationFrame(() => onPointerMove(e));
+                };
+
+                const onPointerUpOrCancel = () => {
+                    isDragging = false;
+                    this.removeAttribute('dragging');
+                    if (rafId) {
+                        cancelAnimationFrame(rafId);
+                        rafId = null;
+                    }
+                    window.removeEventListener('pointermove', onPointerMove);
+                    window.removeEventListener('pointerup', onPointerUpOrCancel);
+                    window.removeEventListener('pointercancel', onPointerUpOrCancel);
+                };
+
+                container.addEventListener('pointerdown', (e) => {
+                    // Only start drag if we click on the image area, not controls or hotspots
+                    const clickInsideControls = e.target.closest('.controls, [slot]');
+                    if (clickInsideControls) return;
+
+                    isDragging = true;
+                    lastPointerX = e.clientX;
+                    this.setAttribute('dragging', '');
+                    this.stopAutoRotate();
+
+                    window.addEventListener('pointermove', onPointerMove);
+                    window.addEventListener('pointerup', onPointerUpOrCancel);
+                    window.addEventListener('pointercancel', onPointerUpOrCancel);
+                });
+
+                // Play/Pause button
+                playPauseBtn.addEventListener('click', () => {
+                    if (this.isRotating) {
+                        this.stopAutoRotate();
+                        playPauseBtn.textContent = '▶ Play';
+                    } else {
+                        this.startAutoRotate();
+                        playPauseBtn.textContent = '⏸ Pause';
+                    }
+                });
+
+                // Reset button
+                resetBtn.addEventListener('click', () => {
+                    this.currentFrame = 0;
+                    this.updateFrame();
+                });
+            }
+            
+            rotate(direction) {
+                this.currentFrame += direction;
+                
+                if (this.currentFrame >= this.totalFrames) {
+                    this.currentFrame = 0;
+                } else if (this.currentFrame < 0) {
+                    this.currentFrame = this.totalFrames - 1;
+                }
+                
+                this.updateFrame();
+            }
+            
+            updateFrame() {
+                this.images.forEach((img, index) => {
+                    img.classList.toggle('active', index === this.currentFrame);
+                });
+            }
+            
+            startAutoRotate() {
+                this.isRotating = true;
+                this.autoRotateInterval = setInterval(() => {
+                    this.rotate(1);
+                }, 1000 / this.rotationSpeed);
+            }
+            
+            stopAutoRotate() {
+                this.isRotating = false;
+                if (this.autoRotateInterval) {
+                    clearInterval(this.autoRotateInterval);
+                    this.autoRotateInterval = null;
+                }
+            }
+        }
+        
+        // Hotspot Component (same as before)
+        class ProductHotspot extends HTMLElement {
+            constructor() {
+                super();
+                this.attachShadow({ mode: 'open' });
+            }
+            
+            connectedCallback() {
+                this.x = this.getAttribute('x') || '50';
+                this.y = this.getAttribute('y') || '50';
+                this.title = this.getAttribute('title') || 'Information';
+                this.description = this.getAttribute('description') || '';
+                
+                this.render();
+                this.setupEventListeners();
+            }
+            
+            render() {
+                this.shadowRoot.innerHTML = `
+                    <style>
+                        :host {
+                            position: absolute;
+                            left: ${this.x}%;
+                            top: ${this.y}%;
+                            transform: translate(-50%, -50%);
+                            z-index: 10;
+                        }
+                        
+                        .hotspot {
+                            width: 24px;
+                            height: 24px;
+                            background: #333;
+                            border-radius: 50%;
+                            cursor: pointer;
+                            position: relative;
+                            transition: transform 0.2s;
+                            animation: pulse 2s infinite;
+                            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+                        }
+                        
+                        @keyframes pulse {
+                            0% {
+                                box-shadow: 0 0 0 0 rgba(51, 51, 51, 0.4);
+                            }
+                            70% {
+                                box-shadow: 0 0 0 10px rgba(51, 51, 51, 0);
+                            }
+                            100% {
+                                box-shadow: 0 0 0 0 rgba(51, 51, 51, 0);
+                            }
+                        }
+                        
+                        .hotspot:hover {
+                            transform: scale(1.2);
+                        }
+                        
+                        .hotspot::before {
+                            content: '+';
+                            position: absolute;
+                            top: 50%;
+                            left: 50%;
+                            transform: translate(-50%, -50%);
+                            color: white;
+                            font-size: 16px;
+                            font-weight: bold;
+                        }
+                        
+                        .tooltip {
+                            position: absolute;
+                            bottom: 100%;
+                            left: 50%;
+                            transform: translateX(-50%) translateY(-10px);
+                            background: white;
+                            padding: 12px 16px;
+                            border-radius: 8px;
+                            box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+                            min-width: 200px;
+                            opacity: 0;
+                            visibility: hidden;
+                            transition: opacity 0.3s, visibility 0.3s;
+                            pointer-events: none;
+                        }
+                        
+                        .tooltip.active {
+                            opacity: 1;
+                            visibility: visible;
+                        }
+                        
+                        .tooltip::after {
+                            content: '';
+                            position: absolute;
+                            top: 100%;
+                            left: 50%;
+                            transform: translateX(-50%);
+                            border: 8px solid transparent;
+                            border-top-color: white;
+                        }
+                        
+                        .tooltip h3 {
+                            margin: 0 0 4px 0;
+                            font-size: 16px;
+                            color: #333;
+                        }
+                        
+                        .tooltip p {
+                            margin: 0;
+                            font-size: 14px;
+                            color: #666;
+                            line-height: 1.4;
+                        }
+                    </style>
+                    
+                    <div class="hotspot"></div>
+                    <div class="tooltip">
+                        <h3>${this.title}</h3>
+                        <p>${this.description}</p>
+                    </div>
+                `;
+            }
+            
+            setupEventListeners() {
+                const hotspot = this.shadowRoot.querySelector('.hotspot');
+                const tooltip = this.shadowRoot.querySelector('.tooltip');
+                
+                hotspot.addEventListener('click', () => {
+                    tooltip.classList.toggle('active');
+                });
+                
+                document.addEventListener('click', (e) => {
+                    if (!this.contains(e.target)) {
+                        tooltip.classList.remove('active');
+                    }
+                });
+            }
+        }
+        
+        // Register custom elements
+        customElements.define('product-viewer-360', ProductViewer360);
+        customElements.define('product-hotspot', ProductHotspot);
+    </script>
+</body>
+</html>
