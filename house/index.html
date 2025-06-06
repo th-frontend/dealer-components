@@ -3,562 +3,597 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>360° House  Viewer</title>
+    <title>360° House Viewer</title>
     <style>
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        * {
             margin: 0;
-            padding: 40px;
-            background: #f5f5f5;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh;
+            padding: 0;
+            box-sizing: border-box;
         }
-        
-        .demo-container {
-            max-width: 800px;
+
+        body {
+            font-family: 'Arial', sans-serif;
             background: white;
-            padding: 40px;
-            border-radius: 20px;
-            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+            height: 100vh;
         }
-        
-        h1 {
-            margin: 0 0 10px 0;
-            color: #333;
-            text-align: center;
+
+        .viewer-container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+            overflow: hidden;
+            cursor: grab;
+            user-select: none;
         }
-        
-        p {
-            text-align: center;
-            color: #666;
-            margin: 0 0 30px 0;
+
+        .viewer-container.dragging {
+            cursor: grabbing;
+        }
+
+        .house-image {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transition: opacity 0.1s ease;
+        }
+
+        .hotspot {
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            background: rgba(255, 255, 255, 0.9);
+            border: 3px solid #007bff;
+            border-radius: 50%;
+            cursor: pointer;
+            transform: translate(-50%, -50%);
+            transition: opacity 0.15s ease;
+            z-index: 10;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+            pointer-events: all;
+        }
+
+        .hotspot:hover {
+            background: #007bff;
+            transform: translate(-50%, -50%) scale(1.2);
+            box-shadow: 0 4px 20px rgba(0, 123, 255, 0.4);
+        }
+
+        .hotspot::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 40px;
+            height: 40px;
+            border: 2px solid rgba(0, 123, 255, 0.3);
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% {
+                transform: translate(-50%, -50%) scale(1);
+                opacity: 1;
+            }
+            100% {
+                transform: translate(-50%, -50%) scale(1.5);
+                opacity: 0;
+            }
+        }
+
+        .info-panel {
+            position: fixed;
+            top: 0;
+            left: -400px;
+            width: 400px;
+            height: 100vh;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            transition: left 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+            z-index: 20;
+            box-shadow: 2px 0 20px rgba(0, 0, 0, 0.3);
+            overflow-y: auto;
+        }
+
+        .info-panel.open {
+            left: 0;
+        }
+
+        .panel-header {
+            padding: 30px;
+            background: rgba(0, 0, 0, 0.2);
+            position: relative;
+        }
+
+        .close-btn {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: none;
+            border: none;
+            color: white;
+            font-size: 24px;
+            cursor: pointer;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.3s ease;
+        }
+
+        .close-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .panel-content {
+            padding: 30px;
+        }
+
+        .panel-title {
+            font-size: 28px;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+
+        .panel-subtitle {
+            font-size: 16px;
+            opacity: 0.8;
+            margin-bottom: 20px;
+        }
+
+        .feature-list {
+            list-style: none;
+            margin: 20px 0;
+        }
+
+        .feature-list li {
+            padding: 10px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            display: flex;
+            align-items: center;
+        }
+
+        .feature-list li:before {
+            content: '✓';
+            color: #4ade80;
+            font-weight: bold;
+            margin-right: 10px;
+        }
+
+        .controls {
+            position: fixed;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.8);
+            padding: 15px 25px;
+            border-radius: 25px;
+            color: white;
+            font-size: 14px;
+            z-index: 15;
+            backdrop-filter: blur(10px);
+        }
+
+        .loading {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: white;
+            font-size: 18px;
+            z-index: 30;
+        }
+
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid rgba(255, 255, 255, 0.3);
+            border-top: 4px solid white;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        @media (max-width: 768px) {
+            .info-panel {
+                width: 100vw;
+                left: -100vw;
+            }
+
+            .controls {
+                font-size: 12px;
+                padding: 10px 20px;
+            }
         }
     </style>
 </head>
 <body>
-    <div class="demo-container">
-        <h1>360° House Signs Viewer</h1>
-        <p>Click and drag to rotate • Click on the dots to see features</p>
+    <div class="viewer-container" id="viewer">
+        <img class="house-image" id="houseImage" alt="360° House View">
         
-        <!-- Using the Treehouse CDN images -->
-        <product-viewer-360 
-            width="800" 
-            height="600"
-            images="100"
-            image-url-pattern="https://cdn.treehouseinternetgroup.com/cms_images/872/T360house/v3_360%20house%20signs{frame}.png"
-            frame-padding="4"
-            start-frame="0">
-            
-            <!-- Add hotspots for house sign features -->
-            <product-hotspot
-                x="50"
-                y="30"
-                title="Title 1"
-                description="Description"
-                positions='[{"x":50,"y":30},{"x":52,"y":30},{"x":54,"y":30}]'>
-            </product-hotspot>
-            
-            <product-hotspot 
-                x="70" 
-                y="50" 
-                title="Title 2" 
-                description="Choose from various fonts and sizes to match your home's style.">
-            </product-hotspot>
-            
-          
-        </product-viewer-360>
+        <!-- Hotspots will be positioned dynamically based on current frame -->
+        <div class="hotspot" id="hotspot-living-room" data-info="living-room"></div>
+        <div class="hotspot" id="hotspot-kitchen" data-info="kitchen"></div>
+        <div class="hotspot" id="hotspot-master-bedroom" data-info="master-bedroom"></div>
+        <div class="hotspot" id="hotspot-bathroom" data-info="bathroom"></div>
+        <div class="hotspot" id="hotspot-garden" data-info="garden"></div>
+    </div>
+
+    <div class="info-panel" id="infoPanel">
+        <div class="panel-header">
+            <button class="close-btn" id="closeBtn">&times;</button>
+            <div class="panel-title" id="panelTitle">Room Details</div>
+            <div class="panel-subtitle" id="panelSubtitle">Explore this space</div>
+        </div>
+        <div class="panel-content" id="panelContent">
+            <p>Select a hotspot to learn more about different areas of the house.</p>
+        </div>
+    </div>
+
+    <div class="controls">
+        🖱️ Drag to rotate • 📍 Click dots for info • Frame: <span id="frameCounter">1</span>/100
+    </div>
+
+    <div class="loading" id="loading">
+        <div class="spinner"></div>
+        Loading 360° view...
     </div>
 
     <script>
-        // Enhanced Web Component with URL pattern support
-        class ProductViewer360 extends HTMLElement {
+        class House360Viewer {
             constructor() {
-                super();
-                this.attachShadow({ mode: 'open' });
-                this.currentFrame = 0;
+                this.currentFrame = 1;
                 this.totalFrames = 100;
-                this.images = [];
-                this.imagesLoaded = 0;
-                this.imageCache = new Map();
+                this.isDragging = false;
+                this.lastX = 0;
+                this.dragSensitivity = 2;
+                this.preloadedImages = new Map();
+                this.isLoading = true;
+                
+                this.viewer = document.getElementById('viewer');
+                this.image = document.getElementById('houseImage');
+                this.panel = document.getElementById('infoPanel');
+                this.frameCounter = document.getElementById('frameCounter');
+                this.loading = document.getElementById('loading');
+                this.roomData = {
+                    'living-room': {
+                        title: 'Living Room',
+                        subtitle: 'Spacious and comfortable',
+                        content: `
+                            <p>A beautifully designed living space perfect for relaxation and entertainment.</p>
+                            <ul class="feature-list">
+                                <li>Large windows with natural light</li>
+                                <li>Modern furniture and decor</li>
+                                <li>Entertainment center with TV</li>
+                                <li>Comfortable seating for 6+ people</li>
+                                <li>Hardwood flooring</li>
+                            </ul>
+                            <p>This room serves as the heart of the home, where family and friends gather to create lasting memories.</p>
+                        `,
+                        // Fixed position on the house - front entrance area
+                        position: { top: 45, left: 35 },
+                        visibleFrames: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18]
+                    },
+                    'kitchen': {
+                        title: 'Modern Kitchen',
+                        subtitle: 'Chef-inspired design',
+                        content: `
+                            <p>A state-of-the-art kitchen designed for both functionality and style.</p>
+                            <ul class="feature-list">
+                                <li>Granite countertops</li>
+                                <li>Stainless steel appliances</li>
+                                <li>Large island with bar seating</li>
+                                <li>Custom cabinetry with soft-close doors</li>
+                                <li>Subway tile backsplash</li>
+                                <li>Undermount sink with designer faucet</li>
+                            </ul>
+                            <p>Perfect for cooking enthusiasts and entertaining guests.</p>
+                        `,
+                        // Fixed position - side kitchen area
+                        position: { top: 55, left: 70 },
+                        visibleFrames: [25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37]
+                    },
+                    'master-bedroom': {
+                        title: 'Master Bedroom',
+                        subtitle: 'Private retreat',
+                        content: `
+                            <p>A serene and luxurious master bedroom designed for ultimate comfort.</p>
+                            <ul class="feature-list">
+                                <li>King-size bed accommodation</li>
+                                <li>Walk-in closet</li>
+                                <li>Ensuite bathroom</li>
+                                <li>Large windows with garden views</li>
+                                <li>Ceiling fan and modern lighting</li>
+                                <li>Hardwood floors with area rugs</li>
+                            </ul>
+                            <p>Your personal sanctuary for rest and relaxation.</p>
+                        `,
+                        // Fixed position - side bedroom area
+                        position: { top: 35, left: 55 },
+                        visibleFrames: [45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55]
+                    },
+                    'bathroom': {
+                        title: 'Luxury Bathroom',
+                        subtitle: 'Spa-like experience',
+                        content: `
+                            <p>A modern bathroom featuring high-end finishes and fixtures.</p>
+                            <ul class="feature-list">
+                                <li>Walk-in shower with rainfall head</li>
+                                <li>Double vanity with vessel sinks</li>
+                                <li>Heated tile floors</li>
+                                <li>Large mirror with LED lighting</li>
+                                <li>Modern fixtures and hardware</li>
+                                <li>Ample storage space</li>
+                            </ul>
+                            <p>Transform your daily routine into a spa-like experience.</p>
+                        `,
+                        // Fixed position - back area
+                        position: { top: 65, left: 45 },
+                        visibleFrames: [65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75]
+                    },
+                    'garden': {
+                        title: 'Garden View',
+                        subtitle: 'Outdoor living space',
+                        content: `
+                            <p>Beautiful outdoor area perfect for relaxation and entertainment.</p>
+                            <ul class="feature-list">
+                                <li>Landscaped garden beds</li>
+                                <li>Patio seating area</li>
+                                <li>Mature trees for shade</li>
+                                <li>Lawn space for activities</li>
+                                <li>Outdoor lighting</li>
+                                <li>Easy maintenance design</li>
+                            </ul>
+                            <p>Enjoy the beauty of nature right in your backyard.</p>
+                        `,
+                        // Fixed position - back garden area
+                        position: { top: 40, left: 25 },
+                        visibleFrames: [85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 100, 1, 2, 3, 4, 5]
+                    }
+                };
+                
+                this.init();
             }
             
-            connectedCallback() {
-                // Get configuration from attributes
-                this.totalFrames = parseInt(this.getAttribute('images') || '59');
-                this.width = this.getAttribute('width') || '600';
-                this.height = this.getAttribute('height') || '400';
-                
-                // URL pattern configuration
-                this.imageUrlPattern = this.getAttribute('image-url-pattern');
-                this.framePadding = parseInt(this.getAttribute('frame-padding') || '4');
-                this.startFrame = parseInt(this.getAttribute('start-frame') || '0');
-                
-                this.render();
-                this.loadImages().then(() => {
-                    // Auto-rotate logic removed
-                });
+            init() {
                 this.setupEventListeners();
-            }
-            
-            disconnectedCallback() {
-                // Auto-rotate interval clearing removed
-            }
-            
-            render() {
-                this.shadowRoot.innerHTML = `
-                    <style>
-                        :host {
-                            display: block;
-                            position: relative;
-                            user-select: none;
-                            cursor: grab;
-                        }
-                        
-                        :host([dragging]) {
-                            cursor: grabbing;
-                        }
-                        
-                        .viewer-container {
-                            position: relative;
-                            width: ${this.width}px;
-                            height: ${this.height}px;
-                            overflow: hidden;
-                            border-radius: 12px;
-                            background: #f8f8f8;
-                            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
-                        }
-                        
-                        .image-container {
-                            width: 100%;
-                            height: 100%;
-                            position: relative;
-                        }
-                        
-                        .product-image {
-                            width: 100%;
-                            height: 100%;
-                            object-fit: contain;
-                            display: none;
-                            position: absolute;
-                            top: 0;
-                            left: 0;
-                        }
-                        
-                        .product-image.active {
-                            display: block;
-                        }
-                        
-                        .loading {
-                            position: absolute;
-                            top: 50%;
-                            left: 50%;
-                            transform: translate(-50%, -50%);
-                            text-align: center;
-                            color: #666;
-                        }
-                        
-                        .loading-spinner {
-                            width: 40px;
-                            height: 40px;
-                            border: 3px solid #f3f3f3;
-                            border-top: 3px solid #333;
-                            border-radius: 50%;
-                            animation: spin 1s linear infinite;
-                            margin: 0 auto 10px;
-                        }
-                        
-                        @keyframes spin {
-                            0% { transform: rotate(0deg); }
-                            100% { transform: rotate(360deg); }
-                        }
-                        
-                        .loading-progress {
-                            font-size: 14px;
-                            margin-top: 10px;
-                        }
-                        
-                        .controls {
-                            position: absolute;
-                            bottom: 20px;
-                            left: 50%;
-                            transform: translateX(-50%);
-                            display: flex;
-                            gap: 10px;
-                            background: rgba(255,255,255,0.95);
-                            padding: 10px;
-                            border-radius: 8px;
-                            backdrop-filter: blur(10px);
-                            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-                        }
-                        
-                        button {
-                            background: #333;
-                            color: white;
-                            border: none;
-                            padding: 8px 16px;
-                            border-radius: 6px;
-                            cursor: pointer;
-                            font-size: 14px;
-                            transition: background 0.2s;
-                        }
-                        
-                        button:hover {
-                            background: #555;
-                        }
-                        
-                        button:active {
-                            transform: scale(0.95);
-                        }
-                        
-                        .hotspots-container {
-                            position: absolute;
-                            top: 0;
-                            left: 0;
-                            width: 100%;
-                            height: 100%;
-                            pointer-events: none;
-                        }
-                        
-                        ::slotted(product-hotspot) {
-                            pointer-events: auto;
-                        }
-                        
-                        .error-message {
-                            position: absolute;
-                            top: 50%;
-                            left: 50%;
-                            transform: translate(-50%, -50%);
-                            text-align: center;
-                            color: #666;
-                            padding: 20px;
-                        }
-                    </style>
-                    
-                    <div class="viewer-container">
-                        <div class="image-container">
-                            <div class="loading">
-                                <div class="loading-spinner"></div>
-                                <div>Loading 360° view...</div>
-                                <div class="loading-progress">0%</div>
-                            </div>
-                        </div>
-                        <div class="hotspots-container">
-                            <slot></slot>
-                        </div>
-                        <div class="controls">
-                            <button class="reset">↺ Reset</button>
-                        </div>
-                    </div>
-                `;
-            }
-            
-            formatFrameNumber(frameIndex) {
-                // Pad frame number with zeros based on frame-padding attribute
-                const frameNumber = this.startFrame + frameIndex;
-                return frameNumber.toString().padStart(this.framePadding, '0');
-            }
-            
-            getImageUrl(frameIndex) {
-                // Replace {frame} placeholder with formatted frame number
-                const formattedFrame = this.formatFrameNumber(frameIndex);
-                return this.imageUrlPattern.replace('{frame}', formattedFrame);
-            }
-            
-            async loadImages() {
-                const container = this.shadowRoot.querySelector('.image-container');
-                const loadingProgress = this.shadowRoot.querySelector('.loading-progress');
-                let loadedCount = 0;
-                
-                // Create image elements and start loading
-                const loadPromises = [];
-                
-                for (let i = 0; i < this.totalFrames; i++) {
-                    const img = document.createElement('img');
-                    img.className = 'product-image';
-                    if (i === 0) img.classList.add('active');
-                    
-                    const imageUrl = this.getImageUrl(i);
-                    
-                    const loadPromise = new Promise((resolve, reject) => {
-                        img.onload = () => {
-                            loadedCount++;
-                            const progress = Math.round((loadedCount / this.totalFrames) * 100);
-                            loadingProgress.textContent = `${progress}%`;
-                            resolve();
-                        };
-                        
-                        img.onerror = () => {
-                            console.error(`Failed to load image: ${imageUrl}`);
-                            reject(new Error(`Failed to load image: ${imageUrl}`));
-                        };
-                    });
-                    
-                    img.src = imageUrl;
-                    this.images.push(img);
-                    container.appendChild(img);
-                    loadPromises.push(loadPromise);
-                }
-                
-                try {
-                    // Wait for all images to load
-                    await Promise.all(loadPromises);
-                    this.hideLoading();
-                } catch (error) {
-                    console.error('Error loading images:', error);
-                    this.showError('Failed to load some images. Please check the console for details.');
-                }
-            }
-            
-            hideLoading() {
-                const loading = this.shadowRoot.querySelector('.loading');
-                loading.style.display = 'none';
-            }
-            
-            showError(message) {
-                const container = this.shadowRoot.querySelector('.image-container');
-                container.innerHTML = `<div class="error-message">${message}</div>`;
+                // Load the first frame immediately
+                this.loadFrame(1);
+                // Initialize hotspots for frame 1
+                this.updateHotspots(1);
+                // Then start preloading other frames in the background
+                this.preloadImages();
             }
             
             setupEventListeners() {
-                const container = this.shadowRoot.querySelector('.viewer-container');
-                const resetBtn = this.shadowRoot.querySelector('.reset');
-
-                // Prevent container drag when clicking the Reset buttons:
-                [resetBtn].forEach(btn => {
-                    btn.addEventListener('pointerdown', e => e.stopPropagation());
-                });
-
-                let isDragging = false;
-                let lastPointerX = 0;
-
-                const onPointerMove = (e) => {
-                    if (!isDragging) return;
-                    e.preventDefault();
-                    const deltaX = e.clientX - lastPointerX;
-                    lastPointerX = e.clientX;
-                    const move = Math.round(deltaX / 3); // Adjust divisor for sensitivity
-                    if (move !== 0) {
-                        this.rotate(move);
-                    }
-                };
-
-                const onPointerUpOrCancel = () => {
-                    isDragging = false;
-                    this.removeAttribute('dragging');
-                    window.removeEventListener('pointermove', onPointerMove);
-                    window.removeEventListener('pointerup', onPointerUpOrCancel);
-                    window.removeEventListener('pointercancel', onPointerUpOrCancel);
-                };
-
-                container.addEventListener('pointerdown', (e) => {
-                    // Only start drag if we click on the image area, not controls or hotspots
-                    const clickInsideControls = e.target.closest('.controls, [slot]');
-                    if (clickInsideControls) return;
-
-                    isDragging = true;
-                    lastPointerX = e.clientX;
-                    this.setAttribute('dragging', '');
-
-                    window.addEventListener('pointermove', onPointerMove);
-                    window.addEventListener('pointerup', onPointerUpOrCancel);
-                    window.addEventListener('pointercancel', onPointerUpOrCancel);
-                });
-
-                // Reset button
-                resetBtn.addEventListener('click', () => {
-                    this.currentFrame = 0;
-                    this.updateFrame();
-                });
-            }
-            
-            rotate(direction) {
-                this.currentFrame += direction;
+                // Mouse events
+                this.viewer.addEventListener('mousedown', this.onDragStart.bind(this));
+                document.addEventListener('mousemove', this.onDragMove.bind(this));
+                document.addEventListener('mouseup', this.onDragEnd.bind(this));
                 
-                if (this.currentFrame >= this.totalFrames) {
-                    this.currentFrame = 0;
-                } else if (this.currentFrame < 0) {
-                    this.currentFrame = this.totalFrames - 1;
-                }
+                // Touch events
+                this.viewer.addEventListener('touchstart', this.onTouchStart.bind(this));
+                document.addEventListener('touchmove', this.onTouchMove.bind(this));
+                document.addEventListener('touchend', this.onDragEnd.bind(this));
                 
-                this.updateFrame();
-            }
-            
-            updateFrame() {
-                this.images.forEach((img, index) => {
-                    img.classList.toggle('active', index === this.currentFrame);
+                // Hotspot clicks
+                document.querySelectorAll('.hotspot').forEach(hotspot => {
+                    hotspot.addEventListener('click', this.onHotspotClick.bind(this));
                 });
-                this.dispatchEvent(new CustomEvent('frameupdate', {
-                    detail: { frame: this.currentFrame },
-                    bubbles: true,
-                    composed: true
-                }));
-            }
-        }
-        
-        // Hotspot Component (same as before)
-        class ProductHotspot extends HTMLElement {
-            constructor() {
-                super();
-                this.attachShadow({ mode: 'open' });
+                
+                // Panel close
+                document.getElementById('closeBtn').addEventListener('click', this.closePanel.bind(this));
+                
+                // Prevent context menu
+                this.viewer.addEventListener('contextmenu', e => e.preventDefault());
             }
             
-            connectedCallback() {
-                this.x = parseFloat(this.getAttribute('x') || '50');
-                this.y = parseFloat(this.getAttribute('y') || '50');
-                this.title = this.getAttribute('title') || 'Information';
-                this.description = this.getAttribute('description') || '';
-
-                const positionsAttr = this.getAttribute('positions');
-                if (positionsAttr) {
+            async preloadImages() {
+                const preloadFrames = [1, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100];
+                
+                console.log('Starting image preload...');
+                
+                for (const frame of preloadFrames) {
                     try {
-                        this.positions = JSON.parse(positionsAttr);
-                    } catch (e) {
-                        console.error('Invalid positions attribute', e);
-                        this.positions = null;
+                        const img = new Image();
+                        const url = this.getImageUrl(frame);
+                        img.crossOrigin = 'anonymous';
+                        
+                        await new Promise((resolve, reject) => {
+                            img.onload = resolve;
+                            img.onerror = reject;
+                            img.src = url;
+                            
+                            // Timeout after 3 seconds for preload
+                            setTimeout(() => reject(new Error('Timeout')), 3000);
+                        });
+                        
+                        this.preloadedImages.set(frame, img);
+                        console.log(`Preloaded frame ${frame} ✓`);
+                        
+                    } catch (error) {
+                        console.warn(`Failed to preload frame ${frame}:`, error.message);
                     }
                 }
-
-                this.render();
-                this.setupEventListeners();
-
-                this.viewer = this.closest('product-viewer-360');
-                if (this.viewer) {
-                    this.viewer.addEventListener('frameupdate', (e) => this.handleFrameUpdate(e));
-                    this.handleFrameUpdate({ detail: { frame: this.viewer.currentFrame || 0 }});
+                
+                console.log('Preload complete');
+            }
+            
+            getImageUrl(frame) {
+                // Convert frame number to 4-digit zero-padded format (0000, 0001, 0002, etc.)
+                const paddedFrame = (frame - 1).toString().padStart(4, '0'); // frame 1 = 0000, frame 2 = 0001, etc.
+                return `https://cdn.treehouseinternetgroup.com/cms_images/872/T360house/v3_360%20house%20signs${paddedFrame}.png`;
+            }
+            
+            async loadFrame(frame) {
+                const url = this.getImageUrl(frame);
+                
+                if (this.preloadedImages.has(frame)) {
+                    this.image.src = this.preloadedImages.get(frame).src;
+                } else {
+                    this.image.src = url;
+                }
+                
+                this.frameCounter.textContent = frame;
+                this.updateHotspots(frame);
+                
+                if (this.isLoading) {
+                    this.image.onload = () => {
+                        this.loading.style.display = 'none';
+                        this.isLoading = false;
+                    };
+                    this.image.onerror = () => {
+                        this.loading.style.display = 'none';
+                        this.isLoading = false;
+                    };
                 }
             }
             
-            render() {
-                this.shadowRoot.innerHTML = `
-                    <style>
-                        :host {
-                            position: absolute;
-                            left: ${this.x}%;
-                            top: ${this.y}%;
-                            transform: translate(-50%, -50%);
-                            z-index: 10;
-                        }
-                        
-                        .hotspot {
-                            width: 24px;
-                            height: 24px;
-                            background: #333;
-                            border-radius: 50%;
-                            cursor: pointer;
-                            position: relative;
-                            transition: transform 0.2s;
-                            animation: pulse 2s infinite;
-                            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
-                        }
-                        
-                        @keyframes pulse {
-                            0% {
-                                box-shadow: 0 0 0 0 rgba(51, 51, 51, 0.4);
-                            }
-                            70% {
-                                box-shadow: 0 0 0 10px rgba(51, 51, 51, 0);
-                            }
-                            100% {
-                                box-shadow: 0 0 0 0 rgba(51, 51, 51, 0);
-                            }
-                        }
-                        
-                        .hotspot:hover {
-                            transform: scale(1.2);
-                        }
-                        
-                        .hotspot::before {
-                            content: '+';
-                            position: absolute;
-                            top: 50%;
-                            left: 50%;
-                            transform: translate(-50%, -50%);
-                            color: white;
-                            font-size: 16px;
-                            font-weight: bold;
-                        }
-                        
-                        .modal-overlay {
-                            position: fixed;
-                            inset: 0;
-                            background: rgba(0,0,0,0.6);
-                            display: none;
-                            align-items: center;
-                            justify-content: center;
-                            z-index: 1000;
-                        }
-
-                        .modal-overlay.active {
-                            display: flex;
-                        }
-
-                        .modal {
-                            position: relative;
-                            background: white;
-                            padding: 20px;
-                            border-radius: 8px;
-                            max-width: 400px;
-                            box-shadow: 0 4px 20px rgba(0,0,0,0.2);
-                        }
-
-                        .close {
-                            position: absolute;
-                            top: 8px;
-                            right: 8px;
-                            background: transparent;
-                            border: none;
-                            font-size: 24px;
-                            cursor: pointer;
-                        }
-                    </style>
+            updateHotspots(frame) {
+                Object.keys(this.roomData).forEach(roomKey => {
+                    const roomInfo = this.roomData[roomKey];
+                    const hotspot = document.getElementById(`hotspot-${roomKey}`);
                     
-                    <div class="hotspot"></div>
-                    <div class="modal-overlay">
-                        <div class="modal">
-                            <button class="close" aria-label="Close">&times;</button>
-                            <h3>${this.title}</h3>
-                            <p>${this.description}</p>
-                        </div>
-                    </div>
-                `;
-            }
-            
-            setupEventListeners() {
-                const hotspot = this.shadowRoot.querySelector('.hotspot');
-                const overlay = this.shadowRoot.querySelector('.modal-overlay');
-                const closeBtn = this.shadowRoot.querySelector('.close');
-
-                hotspot.addEventListener('click', () => {
-                    overlay.classList.add('active');
-                });
-
-                closeBtn.addEventListener('click', () => {
-                    overlay.classList.remove('active');
-                });
-
-                overlay.addEventListener('click', (e) => {
-                    if (e.target === overlay) {
-                        overlay.classList.remove('active');
+                    if (hotspot && roomInfo.position && roomInfo.visibleFrames) {
+                        // Check if current frame is in the visible frames array
+                        const isVisible = roomInfo.visibleFrames.includes(frame);
+                        
+                        // Always set the position first
+                        hotspot.style.top = `${roomInfo.position.top}%`;
+                        hotspot.style.left = `${roomInfo.position.left}%`;
+                        
+                        if (isVisible) {
+                            hotspot.style.display = 'block';
+                            hotspot.style.opacity = '1';
+                        } else {
+                            hotspot.style.display = 'none';
+                            hotspot.style.opacity = '0';
+                        }
                     }
                 });
             }
-
-            handleFrameUpdate(e) {
-                if (this.positions && this.positions[e.detail.frame]) {
-                    const pos = this.positions[e.detail.frame];
-                    if (typeof pos.x === 'number') this.x = pos.x;
-                    if (typeof pos.y === 'number') this.y = pos.y;
-                    this.style.left = `${this.x}%`;
-                    this.style.top = `${this.y}%`;
+            
+            onDragStart(e) {
+                this.isDragging = true;
+                this.lastX = e.clientX;
+                this.viewer.classList.add('dragging');
+                e.preventDefault();
+            }
+            
+            onTouchStart(e) {
+                if (e.touches.length === 1) {
+                    this.isDragging = true;
+                    this.lastX = e.touches[0].clientX;
+                    this.viewer.classList.add('dragging');
+                    e.preventDefault();
                 }
+            }
+            
+            onDragMove(e) {
+                if (!this.isDragging) return;
+                
+                const currentX = e.clientX;
+                const deltaX = currentX - this.lastX;
+                
+                this.updateFrame(deltaX);
+                this.lastX = currentX;
+                e.preventDefault();
+            }
+            
+            onTouchMove(e) {
+                if (!this.isDragging || e.touches.length !== 1) return;
+                
+                const currentX = e.touches[0].clientX;
+                const deltaX = currentX - this.lastX;
+                
+                this.updateFrame(deltaX);
+                this.lastX = currentX;
+                e.preventDefault();
+            }
+            
+            onDragEnd() {
+                this.isDragging = false;
+                this.viewer.classList.remove('dragging');
+            }
+            
+            updateFrame(deltaX) {
+                const frameChange = Math.round(deltaX / this.dragSensitivity);
+                if (frameChange !== 0) {
+                    let newFrame = this.currentFrame - frameChange;
+                    
+                    // Wrap around
+                    if (newFrame > this.totalFrames) {
+                        newFrame = 1;
+                    } else if (newFrame < 1) {
+                        newFrame = this.totalFrames;
+                    }
+                    
+                    if (newFrame !== this.currentFrame) {
+                        this.currentFrame = newFrame;
+                        this.loadFrame(this.currentFrame);
+                        
+                        // Preload adjacent frames
+                        this.preloadAdjacentFrames();
+                    }
+                }
+            }
+            
+            preloadAdjacentFrames() {
+                const framesToPreload = [];
+                
+                // Preload next and previous frames
+                for (let i = -2; i <= 2; i++) {
+                    let frame = this.currentFrame + i;
+                    if (frame > this.totalFrames) frame = frame - this.totalFrames;
+                    if (frame < 1) frame = this.totalFrames + frame;
+                    
+                    if (!this.preloadedImages.has(frame)) {
+                        framesToPreload.push(frame);
+                    }
+                }
+                
+                framesToPreload.forEach(frame => {
+                    const img = new Image();
+                    img.src = this.getImageUrl(frame);
+                    img.onload = () => {
+                        this.preloadedImages.set(frame, img);
+                    };
+                });
+            }
+            
+            onHotspotClick(e) {
+                const infoType = e.target.dataset.info;
+                const roomInfo = this.roomData[infoType];
+                
+                if (roomInfo) {
+                    document.getElementById('panelTitle').textContent = roomInfo.title;
+                    document.getElementById('panelSubtitle').textContent = roomInfo.subtitle;
+                    document.getElementById('panelContent').innerHTML = roomInfo.content;
+                    
+                    this.panel.classList.add('open');
+                }
+                
+                e.stopPropagation();
+            }
+            
+            closePanel() {
+                this.panel.classList.remove('open');
             }
         }
         
-        // Register custom elements
-        customElements.define('product-viewer-360', ProductViewer360);
-        customElements.define('product-hotspot', ProductHotspot);
+        // Initialize the viewer when the page loads
+        document.addEventListener('DOMContentLoaded', () => {
+            new House360Viewer();
+        });
     </script>
 </body>
 </html>
