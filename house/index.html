@@ -16,15 +16,18 @@
             background: white;
             overflow: hidden;
             height: 100vh;
+            height: 100dvh;
         }
 
         .viewer-container {
             position: relative;
             width: 100vw;
             height: 100vh;
+            height: 100dvh;
             overflow: hidden;
             cursor: grab;
             user-select: none;
+            touch-action: none;
         }
 
         .viewer-container.dragging {
@@ -212,6 +215,27 @@
             .controls {
                 font-size: 12px;
                 padding: 10px 20px;
+            }
+        }
+
+        @media (max-width: 600px) {
+            .viewer-container {
+                width: 100%;
+                height: 100dvh;
+            }
+            .hotspot {
+                width: 30px;
+                height: 30px;
+            }
+
+            .hotspot::before {
+                width: 50px;
+                height: 50px;
+            }
+
+            .controls {
+                font-size: 14px;
+                padding: 12px 22px;
             }
         }
     </style>
