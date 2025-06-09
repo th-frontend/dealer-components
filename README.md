@@ -36,3 +36,18 @@ Hotspots are created with the `<product-hotspot>` element. Position them using `
 
 See [`house/index.html`](house/index.html) for an example configuration with two hotspots.
 
+
+## Improving Mobile Performance
+
+If the viewer feels slow on mobile devices, consider these strategies:
+
+- Use lower-resolution images or responsive image sets to reduce data usage
+- Lazy load frames so the browser downloads only what it needs
+- Throttle drag and touch events with `requestAnimationFrame`
+- Reduce the total frame count or provide fewer frames on smaller screens
+- Precache key frames and load others on demand
+- Limit layout thrashing by updating DOM styles in batches
+- Take advantage of GPU acceleration with CSS transforms
+- Cache assets offline with a service worker for faster repeat visits
+- Provide a static fallback image when device resources are limited
+
