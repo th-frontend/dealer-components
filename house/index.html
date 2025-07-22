@@ -35,7 +35,8 @@
             width: 100%;
             height: 100%;
             object-fit: cover;
-            transition: opacity 0.1s ease;
+            transition: transform 0.3s ease, opacity 0.1s ease;
+            transform-origin: center center;
         }
 
         .hotspot {
@@ -47,16 +48,44 @@
             border-radius: 50%;
             cursor: pointer;
             transform: translate(-50%, -50%);
-            transition: opacity 0.15s ease;
+            transition: opacity 0.15s ease, transform 0.3s ease;
             z-index: 10;
             box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
             pointer-events: all;
+            transform-origin: center center;
         }
 
         .hotspot:hover {
             background: #007bff;
-            transform: translate(-50%, -50%) scale(1.2);
             box-shadow: 0 4px 20px rgba(0, 123, 255, 0.4);
+        }
+
+        .hotspot.url-hotspot {
+            background: rgba(40, 167, 69, 0.9);
+            border-color: #28a745;
+        }
+
+        .hotspot.url-hotspot:hover {
+            background: #28a745;
+            box-shadow: 0 4px 20px rgba(40, 167, 69, 0.4);
+        }
+
+        .hotspot.url-hotspot::before {
+            border-color: rgba(40, 167, 69, 0.3);
+        }
+
+        .hotspot.fetch-hotspot {
+            background: rgba(255, 193, 7, 0.9);
+            border-color: #ffc107;
+        }
+
+        .hotspot.fetch-hotspot:hover {
+            background: #ffc107;
+            box-shadow: 0 4px 20px rgba(255, 193, 7, 0.4);
+        }
+
+        .hotspot.fetch-hotspot::before {
+            border-color: rgba(255, 193, 7, 0.3);
         }
 
         .hotspot::before {
@@ -178,24 +207,109 @@
             backdrop-filter: blur(10px);
         }
 
+        .zoom-controls {
+            position: fixed;
+            top: 30px;
+            right: 30px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            z-index: 15;
+        }
+
+        .zoom-btn {
+            width: 50px;
+            height: 50px;
+            background: rgba(0, 0, 0, 0.8);
+            border: 2px solid rgba(255, 255, 255, 0.2);
+            border-radius: 50%;
+            color: white;
+            font-size: 24px;
+            font-weight: bold;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(10px);
+            user-select: none;
+        }
+
+        .zoom-btn:hover {
+            background: rgba(0, 123, 255, 0.8);
+            border-color: rgba(0, 123, 255, 0.5);
+            transform: scale(1.1);
+        }
+
+        .zoom-btn:active {
+            transform: scale(0.95);
+        }
+
         .loading {
             position: fixed;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: rgba(0, 0, 0, 0.9);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
             color: white;
             font-size: 18px;
             z-index: 30;
+            backdrop-filter: blur(10px);
+        }
+
+        .loading-content {
+            text-align: center;
+            max-width: 400px;
+            padding: 30px;
         }
 
         .spinner {
-            width: 40px;
-            height: 40px;
-            border: 4px solid rgba(255, 255, 255, 0.3);
-            border-top: 4px solid white;
+            width: 60px;
+            height: 60px;
+            border: 4px solid rgba(255, 255, 255, 0.2);
+            border-top: 4px solid #007bff;
             border-radius: 50%;
             animation: spin 1s linear infinite;
-            margin: 0 auto 20px;
+            margin: 0 auto 30px;
+        }
+
+        .progress-container {
+            width: 100%;
+            height: 8px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 4px;
+            margin: 20px 0;
+            overflow: hidden;
+        }
+
+        .progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, #007bff, #0056b3);
+            border-radius: 4px;
+            transition: width 0.3s ease;
+            width: 0%;
+        }
+
+        .loading-text {
+            font-size: 24px;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+
+        .loading-subtitle {
+            font-size: 16px;
+            opacity: 0.8;
+            margin-bottom: 20px;
+        }
+
+        .loading-progress {
+            font-size: 14px;
+            opacity: 0.9;
         }
 
         @keyframes spin {
@@ -213,6 +327,18 @@
                 font-size: 12px;
                 padding: 10px 20px;
             }
+
+            .zoom-controls {
+                top: 20px;
+                right: 20px;
+                gap: 8px;
+            }
+
+            .zoom-btn {
+                width: 45px;
+                height: 45px;
+                font-size: 20px;
+            }
         }
     </style>
 </head>
@@ -226,6 +352,14 @@
         <div class="hotspot" id="hotspot-master-bedroom" data-info="master-bedroom"></div>
         <div class="hotspot" id="hotspot-bathroom" data-info="bathroom"></div>
         <div class="hotspot" id="hotspot-garden" data-info="garden"></div>
+        <div class="hotspot" id="hotspot-url-example" data-info="url-example"></div>
+        
+        <!-- Placeholder hotspots for positioning -->
+        <div class="hotspot" id="hotspot-placeholder1" data-info="placeholder1"></div>
+        <div class="hotspot" id="hotspot-placeholder2" data-info="placeholder2"></div>
+        <div class="hotspot" id="hotspot-placeholder3" data-info="placeholder3"></div>
+        <div class="hotspot" id="hotspot-placeholder4" data-info="placeholder4"></div>
+        <div class="hotspot" id="hotspot-placeholder5" data-info="placeholder5"></div>
     </div>
 
     <div class="info-panel" id="infoPanel">
@@ -243,9 +377,21 @@
         🖱️ Drag to rotate • 📍 Click dots for info • Frame: <span id="frameCounter">1</span>/100
     </div>
 
+    <div class="zoom-controls">
+        <button class="zoom-btn" id="zoomIn" title="Zoom In">+</button>
+        <button class="zoom-btn" id="zoomOut" title="Zoom Out">−</button>
+    </div>
+
     <div class="loading" id="loading">
-        <div class="spinner"></div>
-        Loading 360° view...
+        <div class="loading-content">
+            <div class="spinner"></div>
+            <div class="loading-text">Loading 360° House View</div>
+            <div class="loading-subtitle">Preparing immersive experience...</div>
+            <div class="progress-container">
+                <div class="progress-bar" id="progressBar"></div>
+            </div>
+            <div class="loading-progress" id="loadingProgress">Initializing... 0%</div>
+        </div>
     </div>
 
     <script>
@@ -255,15 +401,24 @@
                 this.totalFrames = 100;
                 this.isDragging = false;
                 this.lastX = 0;
-                this.dragSensitivity = 2;
+                this.dragSensitivity = 0.5;
+                this.rotationTimeout = null;
+                this.isRotating = false;
                 this.preloadedImages = new Map();
                 this.isLoading = true;
+                this.zoomLevel = 1;
+                this.minZoom = 0.5;
+                this.maxZoom = 3;
+                this.clickStartPos = null;
+                this.dragThreshold = 5;
                 
                 this.viewer = document.getElementById('viewer');
                 this.image = document.getElementById('houseImage');
                 this.panel = document.getElementById('infoPanel');
                 this.frameCounter = document.getElementById('frameCounter');
                 this.loading = document.getElementById('loading');
+                this.progressBar = document.getElementById('progressBar');
+                this.loadingProgress = document.getElementById('loadingProgress');
                 this.roomData = {
                     'living-room': {
                         title: 'Living Room',
@@ -279,9 +434,12 @@
                             </ul>
                             <p>This room serves as the heart of the home, where family and friends gather to create lasting memories.</p>
                         `,
-                        // Fixed position on the house - front entrance area
-                        position: { top: 45, left: 35 },
-                        visibleFrames: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18]
+                        positions: {
+                            1: { top: 45, left: 35 }, 2: { top: 44, left: 36 }, 3: { top: 43, left: 37 }, 
+                            4: { top: 42, left: 38 }, 5: { top: 41, left: 39 }, 6: { top: 40, left: 40 },
+                            7: { top: 39, left: 41 }, 8: { top: 38, left: 42 }, 9: { top: 37, left: 43 },
+                            10: { top: 36, left: 44 }, 11: { top: 35, left: 45 }, 12: { top: 34, left: 46 }
+                        }
                     },
                     'kitchen': {
                         title: 'Modern Kitchen',
@@ -298,9 +456,11 @@
                             </ul>
                             <p>Perfect for cooking enthusiasts and entertaining guests.</p>
                         `,
-                        // Fixed position - side kitchen area
-                        position: { top: 55, left: 70 },
-                        visibleFrames: [25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37]
+                        positions: {
+                            25: { top: 55, left: 70 }, 26: { top: 54, left: 69 }, 27: { top: 53, left: 68 },
+                            28: { top: 52, left: 67 }, 29: { top: 51, left: 66 }, 30: { top: 50, left: 65 },
+                            31: { top: 49, left: 64 }, 32: { top: 48, left: 63 }, 33: { top: 47, left: 62 }
+                        }
                     },
                     'master-bedroom': {
                         title: 'Master Bedroom',
@@ -317,9 +477,10 @@
                             </ul>
                             <p>Your personal sanctuary for rest and relaxation.</p>
                         `,
-                        // Fixed position - side bedroom area
-                        position: { top: 35, left: 55 },
-                        visibleFrames: [45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55]
+                        positions: {
+                            45: { top: 35, left: 55 }, 46: { top: 36, left: 54 }, 47: { top: 37, left: 53 },
+                            48: { top: 38, left: 52 }, 49: { top: 39, left: 51 }, 50: { top: 40, left: 50 }
+                        }
                     },
                     'bathroom': {
                         title: 'Luxury Bathroom',
@@ -336,9 +497,10 @@
                             </ul>
                             <p>Transform your daily routine into a spa-like experience.</p>
                         `,
-                        // Fixed position - back area
-                        position: { top: 65, left: 45 },
-                        visibleFrames: [65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75]
+                        positions: {
+                            65: { top: 65, left: 45 }, 66: { top: 64, left: 46 }, 67: { top: 63, left: 47 },
+                            68: { top: 62, left: 48 }, 69: { top: 61, left: 49 }, 70: { top: 60, left: 50 }
+                        }
                     },
                     'garden': {
                         title: 'Garden View',
@@ -355,23 +517,99 @@
                             </ul>
                             <p>Enjoy the beauty of nature right in your backyard.</p>
                         `,
-                        // Fixed position - back garden area
-                        position: { top: 40, left: 25 },
-                        visibleFrames: [85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 100, 1, 2, 3, 4, 5]
+                        positions: {
+                            85: { top: 40, left: 25 }, 86: { top: 41, left: 26 }, 87: { top: 42, left: 27 },
+                            88: { top: 43, left: 28 }, 89: { top: 44, left: 29 }, 90: { top: 45, left: 30 }
+                        }
+                    },
+                    'url-example': {
+                        title: 'Fetch Content Example',
+                        subtitle: 'Loads content dynamically',
+                        fetchUrl: './content-example.html', // Same-domain fetch
+                        positions: {
+                            1: { top: 25, left: 25 }
+                        }
+                    },
+                    'placeholder1': {
+                        title: 'Placeholder 1',
+                        subtitle: 'Move me to correct position',
+                        content: '<p>This is a placeholder hotspot. Use the hotspot-helper.js to find the correct coordinates and update the positions.</p>',
+                        positions: {
+                            1: { top: 20, left: 20 }
+                        }
+                    },
+                    'placeholder2': {
+                        title: 'Placeholder 2', 
+                        subtitle: 'Move me to correct position',
+                        content: '<p>This is a placeholder hotspot. Use the hotspot-helper.js to find the correct coordinates and update the positions.</p>',
+                        positions: {
+                            1: { top: 20, left: 80 }
+                        }
+                    },
+                    'placeholder3': {
+                        title: 'Placeholder 3',
+                        subtitle: 'Move me to correct position', 
+                        content: '<p>This is a placeholder hotspot. Use the hotspot-helper.js to find the correct coordinates and update the positions.</p>',
+                        positions: {
+                            1: { top: 80, left: 20 }
+                        }
+                    },
+                    'placeholder4': {
+                        title: 'Placeholder 4',
+                        subtitle: 'Move me to correct position',
+                        content: '<p>This is a placeholder hotspot. Use the hotspot-helper.js to find the correct coordinates and update the positions.</p>',
+                        positions: {
+                            1: { top: 80, left: 80 }
+                        }
+                    },
+                    'placeholder5': {
+                        title: 'Placeholder 5',
+                        subtitle: 'Move me to correct position',
+                        content: '<p>This is a placeholder hotspot. Use the hotspot-helper.js to find the correct coordinates and update the positions.</p>',
+                        positions: {
+                            1: { top: 50, left: 50 }
+                        }
                     }
                 };
                 
                 this.init();
+                
+                // Make viewer accessible globally for hotspot helper
+                window.viewer = this;
             }
             
             init() {
                 this.setupEventListeners();
+                this.initializeHotspotStyles();
+                this.updateProgress(0, 'Loading first frame...');
                 // Load the first frame immediately
                 this.loadFrame(1);
                 // Initialize hotspots for frame 1
                 this.updateHotspots(1);
                 // Then start preloading other frames in the background
                 this.preloadImages();
+            }
+            
+            initializeHotspotStyles() {
+                // Apply styling to hotspots based on their type
+                Object.keys(this.roomData).forEach(roomKey => {
+                    const roomInfo = this.roomData[roomKey];
+                    const hotspot = document.getElementById(`hotspot-${roomKey}`);
+                    
+                    if (hotspot) {
+                        if (roomInfo.fetchUrl) {
+                            hotspot.classList.add('fetch-hotspot');
+                        } else if (roomInfo.url) {
+                            hotspot.classList.add('url-hotspot');
+                        }
+                        // Default hotspots don't need additional classes
+                    }
+                });
+            }
+            
+            updateProgress(percentage, message) {
+                this.progressBar.style.width = `${percentage}%`;
+                this.loadingProgress.textContent = `${message} ${Math.round(percentage)}%`;
             }
             
             setupEventListeners() {
@@ -393,14 +631,22 @@
                 // Panel close
                 document.getElementById('closeBtn').addEventListener('click', this.closePanel.bind(this));
                 
+                // Zoom controls
+                document.getElementById('zoomIn').addEventListener('click', this.zoomIn.bind(this));
+                document.getElementById('zoomOut').addEventListener('click', this.zoomOut.bind(this));
+                
+            
+                
                 // Prevent context menu
                 this.viewer.addEventListener('contextmenu', e => e.preventDefault());
             }
             
             async preloadImages() {
                 const preloadFrames = [1, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100];
+                let loadedCount = 0;
                 
                 console.log('Starting image preload...');
+                this.updateProgress(5, 'Preloading key frames...');
                 
                 for (const frame of preloadFrames) {
                     try {
@@ -418,12 +664,29 @@
                         });
                         
                         this.preloadedImages.set(frame, img);
+                        loadedCount++;
+                        
+                        const progress = 5 + (loadedCount / preloadFrames.length) * 85;
+                        this.updateProgress(progress, `Loading frames... ${loadedCount}/${preloadFrames.length}`);
+                        
                         console.log(`Preloaded frame ${frame} ✓`);
                         
                     } catch (error) {
                         console.warn(`Failed to preload frame ${frame}:`, error.message);
+                        loadedCount++;
+                        const progress = 5 + (loadedCount / preloadFrames.length) * 85;
+                        this.updateProgress(progress, `Loading frames... ${loadedCount}/${preloadFrames.length}`);
                     }
                 }
+                
+                this.updateProgress(95, 'Finalizing...');
+                setTimeout(() => {
+                    this.updateProgress(100, 'Complete!');
+                    setTimeout(() => {
+                        this.loading.style.display = 'none';
+                        this.isLoading = false;
+                    }, 500);
+                }, 300);
                 
                 console.log('Preload complete');
             }
@@ -446,14 +709,12 @@
                 this.frameCounter.textContent = frame;
                 this.updateHotspots(frame);
                 
-                if (this.isLoading) {
+                if (this.isLoading && frame === 1) {
                     this.image.onload = () => {
-                        this.loading.style.display = 'none';
-                        this.isLoading = false;
+                        this.updateProgress(30, 'First frame loaded...');
                     };
                     this.image.onerror = () => {
-                        this.loading.style.display = 'none';
-                        this.isLoading = false;
+                        this.updateProgress(30, 'Loading error...');
                     };
                 }
             }
@@ -463,87 +724,186 @@
                     const roomInfo = this.roomData[roomKey];
                     const hotspot = document.getElementById(`hotspot-${roomKey}`);
                     
-                    if (hotspot && roomInfo.position && roomInfo.visibleFrames) {
-                        // Check if current frame is in the visible frames array
-                        const isVisible = roomInfo.visibleFrames.includes(frame);
+                    if (hotspot && roomInfo.positions) {
+                        // Check if current frame has a defined position
+                        const position = roomInfo.positions[frame];
                         
-                        // Always set the position first
-                        hotspot.style.top = `${roomInfo.position.top}%`;
-                        hotspot.style.left = `${roomInfo.position.left}%`;
-                        
-                        if (isVisible) {
+                        if (position && !this.isRotating) {
+                            // Calculate zoom-adjusted position
+                            const zoomAdjustedPos = this.calculateZoomedPosition(position);
+                            
+                            // Use exact position for this frame
+                            hotspot.style.top = `${zoomAdjustedPos.top}%`;
+                            hotspot.style.left = `${zoomAdjustedPos.left}%`;
+                            hotspot.style.transform = `translate(-50%, -50%) scale(${1/this.zoomLevel})`;
                             hotspot.style.display = 'block';
                             hotspot.style.opacity = '1';
+                            hotspot.style.pointerEvents = 'all';
                         } else {
-                            hotspot.style.display = 'none';
+                            // Hide if no position defined for this frame or currently rotating
                             hotspot.style.opacity = '0';
+                            hotspot.style.pointerEvents = 'none';
                         }
                     }
                 });
             }
             
+            calculateZoomedPosition(originalPosition) {
+                // When the image scales from center, the effective position changes
+                const centerX = 50;
+                const centerY = 50;
+                
+                // Calculate the offset from center
+                const offsetX = originalPosition.left - centerX;
+                const offsetY = originalPosition.top - centerY;
+                
+                // Scale the offset by zoom level
+                const scaledOffsetX = offsetX * this.zoomLevel;
+                const scaledOffsetY = offsetY * this.zoomLevel;
+                
+                // Return the new position
+                return {
+                    left: centerX + scaledOffsetX,
+                    top: centerY + scaledOffsetY
+                };
+            }
+            
             onDragStart(e) {
-                this.isDragging = true;
+                // Check if we're clicking on a hotspot
+                if (e.target.classList.contains('hotspot') || e.target.closest('.hotspot')) {
+                    return; // Let the hotspot click handler deal with it
+                }
+                
+                this.clickStartPos = { x: e.clientX, y: e.clientY };
                 this.lastX = e.clientX;
-                this.viewer.classList.add('dragging');
                 e.preventDefault();
             }
             
             onTouchStart(e) {
                 if (e.touches.length === 1) {
-                    this.isDragging = true;
+                    // Check if we're touching a hotspot
+                    if (e.target.classList.contains('hotspot') || e.target.closest('.hotspot')) {
+                        return; // Let the hotspot click handler deal with it
+                    }
+                    
+                    this.clickStartPos = { x: e.touches[0].clientX, y: e.touches[0].clientY };
                     this.lastX = e.touches[0].clientX;
-                    this.viewer.classList.add('dragging');
                     e.preventDefault();
                 }
             }
             
             onDragMove(e) {
-                if (!this.isDragging) return;
+                if (!this.clickStartPos) return;
                 
                 const currentX = e.clientX;
-                const deltaX = currentX - this.lastX;
+                const currentY = e.clientY;
                 
-                this.updateFrame(deltaX);
-                this.lastX = currentX;
+                // Check if we've moved enough to start dragging
+                const distance = Math.sqrt(
+                    Math.pow(currentX - this.clickStartPos.x, 2) + 
+                    Math.pow(currentY - this.clickStartPos.y, 2)
+                );
+                
+                if (distance > this.dragThreshold && !this.isDragging) {
+                    this.isDragging = true;
+                    this.viewer.classList.add('dragging');
+                    this.setRotating(true);
+                }
+                
+                if (this.isDragging) {
+                    const deltaX = currentX - this.lastX;
+                    this.updateFrame(deltaX);
+                    this.lastX = currentX;
+                }
+                
                 e.preventDefault();
             }
             
             onTouchMove(e) {
-                if (!this.isDragging || e.touches.length !== 1) return;
+                if (!this.clickStartPos || e.touches.length !== 1) return;
                 
                 const currentX = e.touches[0].clientX;
-                const deltaX = currentX - this.lastX;
+                const currentY = e.touches[0].clientY;
                 
-                this.updateFrame(deltaX);
-                this.lastX = currentX;
+                // Check if we've moved enough to start dragging
+                const distance = Math.sqrt(
+                    Math.pow(currentX - this.clickStartPos.x, 2) + 
+                    Math.pow(currentY - this.clickStartPos.y, 2)
+                );
+                
+                if (distance > this.dragThreshold && !this.isDragging) {
+                    this.isDragging = true;
+                    this.viewer.classList.add('dragging');
+                    this.setRotating(true);
+                }
+                
+                if (this.isDragging) {
+                    const deltaX = currentX - this.lastX;
+                    this.updateFrame(deltaX);
+                    this.lastX = currentX;
+                }
+                
                 e.preventDefault();
             }
             
-            onDragEnd() {
+            onDragEnd(e) {
+                // If we never started dragging, this might be a click
+                if (!this.isDragging && this.clickStartPos) {
+                    // Check if this is a click on a hotspot
+                    const target = e ? e.target : document.elementFromPoint(this.clickStartPos.x, this.clickStartPos.y);
+                    if (target && (target.classList.contains('hotspot') || target.closest('.hotspot'))) {
+                        // Let it bubble up to the hotspot click handler
+                        return;
+                    }
+                }
+                
                 this.isDragging = false;
+                this.clickStartPos = null;
                 this.viewer.classList.remove('dragging');
+                this.setRotating(false);
+            }
+            
+            setRotating(rotating) {
+                this.isRotating = rotating;
+                
+                // Clear any existing timeout
+                if (this.rotationTimeout) {
+                    clearTimeout(this.rotationTimeout);
+                }
+                
+                if (rotating) {
+                    // Hide hotspots immediately when starting to rotate
+                    this.updateHotspots(this.currentFrame);
+                } else {
+                    // Show hotspots after a short delay when rotation stops
+                    this.rotationTimeout = setTimeout(() => {
+                        this.isRotating = false;
+                        this.updateHotspots(this.currentFrame);
+                    }, 300);
+                }
             }
             
             updateFrame(deltaX) {
-                const frameChange = Math.round(deltaX / this.dragSensitivity);
-                if (frameChange !== 0) {
-                    let newFrame = this.currentFrame - frameChange;
+                // Use continuous frame calculation for smoother transitions
+                this.frameFloat = this.frameFloat || this.currentFrame;
+                this.frameFloat -= deltaX / this.dragSensitivity;
+                
+                // Wrap around smoothly
+                while (this.frameFloat > this.totalFrames) {
+                    this.frameFloat -= this.totalFrames;
+                }
+                while (this.frameFloat < 1) {
+                    this.frameFloat += this.totalFrames;
+                }
+                
+                const newFrame = Math.round(this.frameFloat);
+                
+                if (newFrame !== this.currentFrame) {
+                    this.currentFrame = newFrame;
+                    this.loadFrame(this.currentFrame);
                     
-                    // Wrap around
-                    if (newFrame > this.totalFrames) {
-                        newFrame = 1;
-                    } else if (newFrame < 1) {
-                        newFrame = this.totalFrames;
-                    }
-                    
-                    if (newFrame !== this.currentFrame) {
-                        this.currentFrame = newFrame;
-                        this.loadFrame(this.currentFrame);
-                        
-                        // Preload adjacent frames
-                        this.preloadAdjacentFrames();
-                    }
+                    // Preload adjacent frames
+                    this.preloadAdjacentFrames();
                 }
             }
             
@@ -571,23 +931,128 @@
             }
             
             onHotspotClick(e) {
-                const infoType = e.target.dataset.info;
+                // Prevent any dragging behavior
+                e.preventDefault();
+                e.stopPropagation();
+                
+                const hotspot = e.target.closest('.hotspot');
+                if (!hotspot) return;
+                
+                const infoType = hotspot.dataset.info;
                 const roomInfo = this.roomData[infoType];
                 
                 if (roomInfo) {
-                    document.getElementById('panelTitle').textContent = roomInfo.title;
-                    document.getElementById('panelSubtitle').textContent = roomInfo.subtitle;
-                    document.getElementById('panelContent').innerHTML = roomInfo.content;
-                    
-                    this.panel.classList.add('open');
+                    // Check what type of hotspot this is
+                    if (roomInfo.fetchUrl) {
+                        this.loadFetchContent(roomInfo);
+                    } else if (roomInfo.url) {
+                        this.openUrlPopup(roomInfo);
+                    } else {
+                        // Traditional content panel
+                        document.getElementById('panelTitle').textContent = roomInfo.title;
+                        document.getElementById('panelSubtitle').textContent = roomInfo.subtitle;
+                        document.getElementById('panelContent').innerHTML = roomInfo.content;
+                        
+                        this.panel.classList.add('open');
+                    }
                 }
+            }
+            
+            async loadFetchContent(roomInfo) {
+                // Show loading state
+                document.getElementById('panelTitle').textContent = roomInfo.title;
+                document.getElementById('panelSubtitle').textContent = 'Loading...';
+                document.getElementById('panelContent').innerHTML = `
+                    <div style="text-align: center; padding: 40px;">
+                        <div class="spinner" style="width: 30px; height: 30px; margin: 0 auto 20px;"></div>
+                        <p>Loading content from ${roomInfo.fetchUrl}</p>
+                    </div>
+                `;
                 
-                e.stopPropagation();
+                this.panel.classList.add('open');
+                
+                try {
+                    const response = await fetch(roomInfo.fetchUrl);
+                    
+                    if (!response.ok) {
+                        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                    }
+                    
+                    const contentType = response.headers.get('content-type');
+                    let content;
+                    
+                    if (contentType && contentType.includes('application/json')) {
+                        const data = await response.json();
+                        content = `<pre>${JSON.stringify(data, null, 2)}</pre>`;
+                    } else {
+                        content = await response.text();
+                    }
+                    
+                    // Update panel with fetched content
+                    document.getElementById('panelSubtitle').textContent = roomInfo.subtitle || 'Fetched Content';
+                    document.getElementById('panelContent').innerHTML = content;
+                    
+                } catch (error) {
+                    document.getElementById('panelSubtitle').textContent = 'Error Loading Content';
+                    document.getElementById('panelContent').innerHTML = `
+                        <div style="color: #dc3545; padding: 20px;">
+                            <h4>⚠️ Failed to Load Content</h4>
+                            <p><strong>URL:</strong> ${roomInfo.fetchUrl}</p>
+                            <p><strong>Error:</strong> ${error.message}</p>
+                            <hr>
+                            <small>Make sure the URL is accessible and CORS is properly configured for same-domain requests.</small>
+                        </div>
+                    `;
+                }
+            }
+            
+            openUrlPopup(roomInfo) {
+                // Calculate popup size similar to info panel (400px width)
+                const popupWidth = 400;
+                const popupHeight = 600;
+                
+                // Center the popup on screen
+                const left = (screen.width / 2) - (popupWidth / 2);
+                const top = (screen.height / 2) - (popupHeight / 2);
+                
+                const popup = window.open(
+                    roomInfo.url,
+                    roomInfo.title.replace(/\s+/g, '_'), // Use title as window name
+                    `width=${popupWidth},height=${popupHeight},left=${left},top=${top},` +
+                    `resizable=yes,scrollbars=yes,status=yes,menubar=no,toolbar=no,location=yes`
+                );
+                
+                // Focus the popup window
+                if (popup) {
+                    popup.focus();
+                }
             }
             
             closePanel() {
                 this.panel.classList.remove('open');
             }
+            
+            zoomIn() {
+                this.setZoom(this.zoomLevel * 1.2);
+            }
+            
+            zoomOut() {
+                this.setZoom(this.zoomLevel / 1.2);
+            }
+            
+            setZoom(newZoom) {
+                this.zoomLevel = Math.max(this.minZoom, Math.min(this.maxZoom, newZoom));
+                this.image.style.transform = `scale(${this.zoomLevel})`;
+                
+                // Update hotspot positions for new zoom level
+                this.updateHotspots(this.currentFrame);
+                
+                // Update zoom button states
+                document.getElementById('zoomIn').style.opacity = this.zoomLevel >= this.maxZoom ? '0.5' : '1';
+                document.getElementById('zoomOut').style.opacity = this.zoomLevel <= this.minZoom ? '0.5' : '1';
+            }
+            
+         
         }
         
         // Initialize the viewer when the page loads
