@@ -434,12 +434,10 @@
                             </ul>
                             <p>This room serves as the heart of the home, where family and friends gather to create lasting memories.</p>
                         `,
-                        positions: {
-                            1: { top: 45, left: 35 }, 2: { top: 44, left: 36 }, 3: { top: 43, left: 37 }, 
-                            4: { top: 42, left: 38 }, 5: { top: 41, left: 39 }, 6: { top: 40, left: 40 },
-                            7: { top: 39, left: 41 }, 8: { top: 38, left: 42 }, 9: { top: 37, left: 43 },
-                            10: { top: 36, left: 44 }, 11: { top: 35, left: 45 }, 12: { top: 34, left: 46 }
-                        }
+                        // Reference position and angle for automatic rotation calculation
+                        referenceFrame: 1,
+                        referencePosition: { top: 45, left: 35 },
+                        visibleFrameRange: { start: 1, end: 25 } // Visible for ~25% of rotation
                     },
                     'kitchen': {
                         title: 'Modern Kitchen',
@@ -456,11 +454,9 @@
                             </ul>
                             <p>Perfect for cooking enthusiasts and entertaining guests.</p>
                         `,
-                        positions: {
-                            25: { top: 55, left: 70 }, 26: { top: 54, left: 69 }, 27: { top: 53, left: 68 },
-                            28: { top: 52, left: 67 }, 29: { top: 51, left: 66 }, 30: { top: 50, left: 65 },
-                            31: { top: 49, left: 64 }, 32: { top: 48, left: 63 }, 33: { top: 47, left: 62 }
-                        }
+                        referenceFrame: 30,
+                        referencePosition: { top: 55, left: 70 },
+                        visibleFrameRange: { start: 20, end: 40 }
                     },
                     'master-bedroom': {
                         title: 'Master Bedroom',
@@ -477,10 +473,9 @@
                             </ul>
                             <p>Your personal sanctuary for rest and relaxation.</p>
                         `,
-                        positions: {
-                            45: { top: 35, left: 55 }, 46: { top: 36, left: 54 }, 47: { top: 37, left: 53 },
-                            48: { top: 38, left: 52 }, 49: { top: 39, left: 51 }, 50: { top: 40, left: 50 }
-                        }
+                        referenceFrame: 50,
+                        referencePosition: { top: 35, left: 55 },
+                        visibleFrameRange: { start: 40, end: 60 }
                     },
                     'bathroom': {
                         title: 'Luxury Bathroom',
@@ -497,10 +492,9 @@
                             </ul>
                             <p>Transform your daily routine into a spa-like experience.</p>
                         `,
-                        positions: {
-                            65: { top: 65, left: 45 }, 66: { top: 64, left: 46 }, 67: { top: 63, left: 47 },
-                            68: { top: 62, left: 48 }, 69: { top: 61, left: 49 }, 70: { top: 60, left: 50 }
-                        }
+                        referenceFrame: 70,
+                        referencePosition: { top: 65, left: 45 },
+                        visibleFrameRange: { start: 60, end: 80 }
                     },
                     'garden': {
                         title: 'Garden View',
@@ -517,18 +511,17 @@
                             </ul>
                             <p>Enjoy the beauty of nature right in your backyard.</p>
                         `,
-                        positions: {
-                            85: { top: 40, left: 25 }, 86: { top: 41, left: 26 }, 87: { top: 42, left: 27 },
-                            88: { top: 43, left: 28 }, 89: { top: 44, left: 29 }, 90: { top: 45, left: 30 }
-                        }
+                        referenceFrame: 90,
+                        referencePosition: { top: 40, left: 25 },
+                        visibleFrameRange: { start: 80, end: 100 }
                     },
                     'url-example': {
                         title: 'Fetch Content Example',
                         subtitle: 'Loads content dynamically',
-                        fetchUrl: './content-example.html', // Same-domain fetch
-                        positions: {
-                            1: { top: 25, left: 25 }
-                        }
+                        fetchUrl: './content-example.html',
+                        referenceFrame: 1,
+                        referencePosition: { top: 25, left: 25 },
+                        visibleFrameRange: { start: 95, end: 10 } // Wrap-around range
                     },
                     'placeholder1': {
                         title: 'Placeholder 1',
@@ -724,15 +717,16 @@
                     const roomInfo = this.roomData[roomKey];
                     const hotspot = document.getElementById(`hotspot-${roomKey}`);
                     
-                    if (hotspot && roomInfo.positions) {
-                        // Check if current frame has a defined position
-                        const position = roomInfo.positions[frame];
+                    if (hotspot && roomInfo.referencePosition) {
+                        // Check if hotspot should be visible in current frame range
+                        const isVisible = this.isHotspotVisible(frame, roomInfo.visibleFrameRange);
                         
-                        if (position && !this.isRotating) {
-                            // Calculate zoom-adjusted position
+                        if (isVisible && !this.isRotating) {
+                            // Calculate position based on rotation from reference frame
+                            const position = this.calculateRotatedPosition(frame, roomInfo);
                             const zoomAdjustedPos = this.calculateZoomedPosition(position);
                             
-                            // Use exact position for this frame
+                            // Apply position
                             hotspot.style.top = `${zoomAdjustedPos.top}%`;
                             hotspot.style.left = `${zoomAdjustedPos.left}%`;
                             hotspot.style.transform = `translate(-50%, -50%) scale(${1/this.zoomLevel})`;
@@ -740,12 +734,76 @@
                             hotspot.style.opacity = '1';
                             hotspot.style.pointerEvents = 'all';
                         } else {
-                            // Hide if no position defined for this frame or currently rotating
+                            // Hide if not visible or currently rotating
+                            hotspot.style.opacity = '0';
+                            hotspot.style.pointerEvents = 'none';
+                        }
+                    }
+                    
+                    // Handle legacy position system for placeholders
+                    else if (hotspot && roomInfo.positions) {
+                        const position = roomInfo.positions[frame];
+                        
+                        if (position && !this.isRotating) {
+                            const zoomAdjustedPos = this.calculateZoomedPosition(position);
+                            hotspot.style.top = `${zoomAdjustedPos.top}%`;
+                            hotspot.style.left = `${zoomAdjustedPos.left}%`;
+                            hotspot.style.transform = `translate(-50%, -50%) scale(${1/this.zoomLevel})`;
+                            hotspot.style.display = 'block';
+                            hotspot.style.opacity = '1';
+                            hotspot.style.pointerEvents = 'all';
+                        } else {
                             hotspot.style.opacity = '0';
                             hotspot.style.pointerEvents = 'none';
                         }
                     }
                 });
+            }
+            
+            isHotspotVisible(currentFrame, visibleRange) {
+                if (!visibleRange) return true; // Always visible if no range specified
+                
+                const { start, end } = visibleRange;
+                
+                // Handle wrap-around ranges (e.g., frames 80-100 and 1-20)
+                if (start <= end) {
+                    return currentFrame >= start && currentFrame <= end;
+                } else {
+                    return currentFrame >= start || currentFrame <= end;
+                }
+            }
+            
+            calculateRotatedPosition(currentFrame, roomInfo) {
+                const { referenceFrame, referencePosition } = roomInfo;
+                
+                // Calculate rotation offset from reference frame
+                let frameOffset = currentFrame - referenceFrame;
+                
+                // Handle wrap-around (frames 1-100)
+                if (frameOffset > this.totalFrames / 2) {
+                    frameOffset -= this.totalFrames;
+                } else if (frameOffset < -this.totalFrames / 2) {
+                    frameOffset += this.totalFrames;
+                }
+                
+                // Calculate rotation angle (360 degrees over 100 frames)
+                const rotationAngle = (frameOffset / this.totalFrames) * 2 * Math.PI;
+                
+                // Convert reference position to center-relative coordinates
+                const centerX = 50;
+                const centerY = 50;
+                const baseX = referencePosition.left - centerX;
+                const baseY = referencePosition.top - centerY;
+                
+                // Apply rotation
+                const rotatedX = baseX * Math.cos(rotationAngle) - baseY * Math.sin(rotationAngle);
+                const rotatedY = baseX * Math.sin(rotationAngle) + baseY * Math.cos(rotationAngle);
+                
+                // Convert back to viewport coordinates
+                return {
+                    left: Math.max(5, Math.min(95, rotatedX + centerX)),
+                    top: Math.max(5, Math.min(95, rotatedY + centerY))
+                };
             }
             
             calculateZoomedPosition(originalPosition) {
