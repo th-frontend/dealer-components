@@ -37,6 +37,9 @@
             object-fit: cover;
             transition: transform 0.3s ease, opacity 0.1s ease;
             transform-origin: center center;
+            will-change: transform;
+            image-rendering: -webkit-optimize-contrast;
+            image-rendering: crisp-edges;
         }
 
         .hotspot {
@@ -401,16 +404,20 @@
                 this.totalFrames = 100;
                 this.isDragging = false;
                 this.lastX = 0;
-                this.dragSensitivity = 0.5;
+                this.dragSensitivity = 0.3; // More responsive dragging
                 this.rotationTimeout = null;
                 this.isRotating = false;
                 this.preloadedImages = new Map();
+                this.loadingFrames = new Set();
                 this.isLoading = true;
                 this.zoomLevel = 1;
                 this.minZoom = 0.5;
                 this.maxZoom = 3;
                 this.clickStartPos = null;
                 this.dragThreshold = 5;
+                this.frameUpdateRequested = false;
+                this.hotspotUpdateTimeout = null;
+                this.imageLoading = false;
                 
                 this.viewer = document.getElementById('viewer');
                 this.image = document.getElementById('houseImage');
@@ -635,40 +642,29 @@
             }
             
             async preloadImages() {
-                const preloadFrames = [1, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100];
+                // Preload more frames for smoother experience
+                const preloadFrames = [1, 4, 8, 12, 16, 20, 24, 28, 32, 36, 40, 44, 48, 52, 56, 60, 64, 68, 72, 76, 80, 84, 88, 92, 96, 100];
                 let loadedCount = 0;
                 
                 console.log('Starting image preload...');
-                this.updateProgress(5, 'Preloading key frames...');
+                this.updateProgress(5, 'Preloading frames...');
                 
-                for (const frame of preloadFrames) {
+                // Load images in parallel batches for faster loading
+                const batchSize = 5;
+                for (let i = 0; i < preloadFrames.length; i += batchSize) {
+                    const batch = preloadFrames.slice(i, i + batchSize);
+                    const promises = batch.map(frame => this.loadImageAsync(frame));
+                    
                     try {
-                        const img = new Image();
-                        const url = this.getImageUrl(frame);
-                        img.crossOrigin = 'anonymous';
-                        
-                        await new Promise((resolve, reject) => {
-                            img.onload = resolve;
-                            img.onerror = reject;
-                            img.src = url;
-                            
-                            // Timeout after 3 seconds for preload
-                            setTimeout(() => reject(new Error('Timeout')), 3000);
-                        });
-                        
-                        this.preloadedImages.set(frame, img);
-                        loadedCount++;
+                        await Promise.allSettled(promises);
+                        loadedCount += batch.length;
                         
                         const progress = 5 + (loadedCount / preloadFrames.length) * 85;
                         this.updateProgress(progress, `Loading frames... ${loadedCount}/${preloadFrames.length}`);
-                        
-                        console.log(`Preloaded frame ${frame} ✓`);
                         
                     } catch (error) {
-                        console.warn(`Failed to preload frame ${frame}:`, error.message);
-                        loadedCount++;
-                        const progress = 5 + (loadedCount / preloadFrames.length) * 85;
-                        this.updateProgress(progress, `Loading frames... ${loadedCount}/${preloadFrames.length}`);
+                        console.warn('Batch load error:', error);
+                        loadedCount += batch.length;
                     }
                 }
                 
@@ -678,10 +674,34 @@
                     setTimeout(() => {
                         this.loading.style.display = 'none';
                         this.isLoading = false;
-                    }, 500);
-                }, 300);
+                    }, 300);
+                }, 200);
                 
                 console.log('Preload complete');
+            }
+            
+            loadImageAsync(frame) {
+                return new Promise((resolve, reject) => {
+                    const img = new Image();
+                    const url = this.getImageUrl(frame);
+                    
+                    img.onload = () => {
+                        this.preloadedImages.set(frame, img);
+                        resolve(frame);
+                    };
+                    
+                    img.onerror = () => {
+                        console.warn(`Failed to preload frame ${frame}`);
+                        reject(new Error(`Frame ${frame} failed`));
+                    };
+                    
+                    // Set crossOrigin after onload/onerror to avoid CORS issues
+                    img.crossOrigin = 'anonymous';
+                    img.src = url;
+                    
+                    // Shorter timeout for faster failure detection
+                    setTimeout(() => reject(new Error('Timeout')), 2000);
+                });
             }
             
             getImageUrl(frame) {
@@ -693,21 +713,38 @@
             async loadFrame(frame) {
                 const url = this.getImageUrl(frame);
                 
+                // Use preloaded image if available, otherwise load directly
                 if (this.preloadedImages.has(frame)) {
                     this.image.src = this.preloadedImages.get(frame).src;
                 } else {
-                    this.image.src = url;
+                    // For non-preloaded frames, load with a small delay to prevent blocking
+                    if (!this.imageLoading) {
+                        this.imageLoading = true;
+                        this.image.src = url;
+                        
+                        // Preload this frame for future use
+                        this.loadImageAsync(frame).catch(() => {});
+                    }
                 }
                 
                 this.frameCounter.textContent = frame;
-                this.updateHotspots(frame);
+                
+                // Debounce hotspot updates for better performance
+                if (this.hotspotUpdateTimeout) {
+                    clearTimeout(this.hotspotUpdateTimeout);
+                }
+                this.hotspotUpdateTimeout = setTimeout(() => {
+                    this.updateHotspots(frame);
+                }, 16); // ~60fps
                 
                 if (this.isLoading && frame === 1) {
                     this.image.onload = () => {
                         this.updateProgress(30, 'First frame loaded...');
+                        this.imageLoading = false;
                     };
                     this.image.onerror = () => {
                         this.updateProgress(30, 'Loading error...');
+                        this.imageLoading = false;
                     };
                 }
             }
@@ -958,33 +995,44 @@
                 
                 if (newFrame !== this.currentFrame) {
                     this.currentFrame = newFrame;
-                    this.loadFrame(this.currentFrame);
                     
-                    // Preload adjacent frames
+                    // Use requestAnimationFrame for smoother frame updates
+                    if (!this.frameUpdateRequested) {
+                        this.frameUpdateRequested = true;
+                        requestAnimationFrame(() => {
+                            this.loadFrame(this.currentFrame);
+                            this.frameUpdateRequested = false;
+                        });
+                    }
+                    
+                    // Preload adjacent frames in background
                     this.preloadAdjacentFrames();
                 }
             }
             
             preloadAdjacentFrames() {
+                // Only preload if we have capacity and aren't already loading too many
+                if (this.preloadedImages.size > 50) return;
+                
                 const framesToPreload = [];
                 
                 // Preload next and previous frames
-                for (let i = -2; i <= 2; i++) {
+                for (let i = -3; i <= 3; i++) {
                     let frame = this.currentFrame + i;
                     if (frame > this.totalFrames) frame = frame - this.totalFrames;
                     if (frame < 1) frame = this.totalFrames + frame;
                     
-                    if (!this.preloadedImages.has(frame)) {
+                    if (!this.preloadedImages.has(frame) && !this.loadingFrames.has(frame)) {
                         framesToPreload.push(frame);
                     }
                 }
                 
-                framesToPreload.forEach(frame => {
-                    const img = new Image();
-                    img.src = this.getImageUrl(frame);
-                    img.onload = () => {
-                        this.preloadedImages.set(frame, img);
-                    };
+                // Load frames in background without blocking
+                framesToPreload.slice(0, 3).forEach(frame => {
+                    this.loadingFrames.add(frame);
+                    this.loadImageAsync(frame).finally(() => {
+                        this.loadingFrames.delete(frame);
+                    });
                 });
             }
             
