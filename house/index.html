@@ -707,7 +707,7 @@
             getImageUrl(frame) {
                 // Convert frame number to 4-digit zero-padded format (0000, 0001, 0002, etc.)
                 const paddedFrame = (frame - 1).toString().padStart(4, '0'); // frame 1 = 0000, frame 2 = 0001, etc.
-                return `https://cdn.treehouseinternetgroup.com/cms_images/872/T360house/v3_360%20house%20signs${paddedFrame}.png`;
+                return `https://cdn.treehouseinternetgroup.com/cdn-cgi/image/quality=50/cms_images/872/T360house/v3_360%20house%20signs${paddedFrame}.png`;
             }
             
             async loadFrame(frame) {
